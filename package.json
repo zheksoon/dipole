@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Dipole - fast and simple MobX-like observables",
   "main": "src/dipole.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zheksoon/dipole.git"
+  },
   "directories": {
     "test": "test"
   },
@@ -16,7 +20,14 @@
   "jest": {
     "testEnvironment": "node"
   },
-  "keywords": [ "observable", "observables", "computed", "reactive", "frp", "mobx" ],
-  "author": "",
+  "keywords": [
+    "observable",
+    "observables",
+    "computed",
+    "reactive",
+    "frp",
+    "mobx"
+  ],
+  "author": "Eugene Daragan",
   "license": "MIT"
 }
