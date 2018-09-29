@@ -1,0 +1,22 @@
+{
+  "name": "dipole",
+  "version": "1.0.0",
+  "description": "Dipole - fast and simple MobX-like observables",
+  "main": "src/dipole.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "jest": "^22.3.0"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  },
+  "keywords": [ "observable", "observables", "computed", "reactive", "frp", "mobx" ],
+  "author": "",
+  "license": "MIT"
+}
