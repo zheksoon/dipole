@@ -1,6 +1,6 @@
 {
   "name": "dipole",
-  "version": "0.2",
+  "version": "0.2.0",
   "description": "Dipole - fast and simple MobX-like observables",
   "main": "src/dipole.js",
   "repository": {
