@@ -1,29 +1,15 @@
 let gComputedContext = null;
-let gScheduledSubscriptionsRemoves = [];
 let gScheduledReactions = [];
 let gScheduledSubscribersChecks = [];
 let gTransactionDepth = 0;
 
 const states = {
     CLEAN: 0,
-    MAYBE_DIRTY: 1,
-    DIRTY: 2,
-    COMPUTING: 3,
-    RUNNING: 4,
+    DIRTY: 1,
+    COMPUTING: 2,
 }
 
 // Helper functions
-
-function scheduleSubscriptionsRemove(subscriber) {
-    gScheduledSubscriptionsRemoves.push(subscriber);
-}
-
-function runScheduledSubscriptionsRemoves() {
-    let subscriber;
-    while (subscriber = gScheduledSubscriptionsRemoves.pop()) {
-        removeSubscriptions(subscriber);
-    }
-}
 
 function scheduleReaction(reaction) {
     gScheduledReactions.push(reaction);
@@ -59,18 +45,16 @@ function removeSubscriptions(self) {
 function trackComputedContext(self) {
     if (gComputedContext !== null) {
         if (!self._subscribers.has(gComputedContext)) {
-            // console.log(`Subscribing ${gComputedContext} to ${self}`);
             self._subscribers.add(gComputedContext);
             gComputedContext._subscribeTo(self);
         }
     }
 }
 
-function notifyAndRemoveSubscribers(self, state) {
-    // avoid closure creation by using `this` for passing `state` var into iterator
-    self._subscribers.forEach(function (subscriber) {
-        subscriber._notify(this);
-    }, state);
+function notifyAndRemoveSubscribers(self) {
+    self._subscribers.forEach(subscriber => {
+        subscriber._notify();
+    });
     self._subscribers.clear();
 }
 
@@ -108,9 +92,7 @@ class Observable {
         }
 
         this._value = value;
-        notifyAndRemoveSubscribers(this, states.DIRTY);
-
-        runScheduledSubscriptionsRemoves();
+        notifyAndRemoveSubscribers(this);
 
         if (gTransactionDepth == 0) {
             endTransaction();
@@ -118,13 +100,8 @@ class Observable {
     }
 
     _unsubscribe(subscriber) {
-        // console.log(`Removing ${subscriber} from ${this}`)
         this._subscribers.delete(subscriber);
     }
-
-    // toString() {
-    //     return `Observable { ${this._value} }`
-    // }
 }
 
 class Computed {
@@ -169,18 +146,17 @@ class Computed {
     }
 
     _unsubscribe(subscriber) {
-        // console.log(`Removing ${subscriber} from ${this}`)
         this._subscribers.delete(subscriber);
         if (this._subscribers.size == 0) {
             scheduleSubscribersCheck(this);
         }
     }
 
-    _notify(state) {
+    _notify() {
         if (this._state == states.CLEAN) {
-            this._state = state;
-            notifyAndRemoveSubscribers(this, state);
-            scheduleSubscriptionsRemove(this);
+            this._state = states.DIRTY;
+            notifyAndRemoveSubscribers(this);
+            removeSubscriptions(this);
         }
     }
 
@@ -190,10 +166,6 @@ class Computed {
             this._state = states.DIRTY;
         }
     }
-
-    // toString() {
-    //     return `Computed { ${this._computer}, ${this._value} }`
-    // }
 }
 
 class Reaction {
@@ -203,10 +175,9 @@ class Reaction {
         this._reaction = reaction;
     }
 
-    _notify(state) {
+    _notify() {
         if (this._state == states.CLEAN) {
-            this._state = state;
-            scheduleSubscriptionsRemove(this);
+            this._state = states.DIRTY;
             scheduleReaction(this);
         }
     }
@@ -220,22 +191,36 @@ class Reaction {
             return;
         }
 
+        removeSubscriptions(this);
+
         let oldComputedContext = gComputedContext;
         gComputedContext = this;
         
+        ++gTransactionDepth;
+
         try {
-            this._reaction();
             this._state = states.CLEAN;
-            return this;
+            this._reaction();
+        }
+        catch (e) {
+            this.state = states.DIRTY;
+            throw e;
         }
         finally {
             gComputedContext = oldComputedContext;
+            // if we are about to end all transactions, run the rest of reactions inside it
+            if (gTransactionDepth == 1) {
+                endTransaction();
+            }
+            --gTransactionDepth;
         }
     }
 
-    // toString() {
-    //     return `Reaction { ${this._reaction} }`
-    // }
+    destroy() {
+        // TODO: schedule execution of scheduled subscriptions removes after the call
+        removeSubscriptions(this);
+        this.state = states.CLEAN;
+    }
 }
 
 module.exports = {

@@ -318,7 +318,19 @@ describe('Computed tests', () => {
         // restores after exception
         o1.set(5);
         expect(c1.get()).toBe(10);
+    });
 
+    test('throws when trying to change observable inside of computed', () => {
+        const o1 = new Observable(0);
+        const o2 = new Observable(1);
+
+        const c1 = new Computed(() => {
+            o2.set(o1.get() + o2.get());
+        });
+
+        expect(() => {
+            c1.get();
+        }).toThrow();
     })
 });
 
@@ -474,7 +486,96 @@ describe('Reaction tests', () => {
         o2.set('bye');
         expect(out).toBe('bye!');
         expect(trackedUpdates(r1)).toBe(4);
-    })    
+    });
+
+    describe('reactions run in infinite loop if modify dependant observables', () => {
+        test('case 1 (no subsequent subscription in reaction after set()', () => {
+            const o1 = new Observable(0);
+            const r1 = new Reaction(() => {
+                if (o1.get() < 50000) {
+                    o1.set(o1.get() + 1);
+                }
+            })
+
+            r1.run();
+            expect(o1.get()).toBe(50000);
+        });
+
+        test('case 2 (subsequent subscription in reaction after set()', () => {
+            const o1 = new Observable(0);
+            const r1 = new Reaction(() => {
+                if (o1.get() < 50000) {
+                    o1.set(o1.get() + 1);
+
+                    o1.get();
+                }
+            })
+
+            r1.run();
+            expect(o1.get()).toBe(50000);
+        });
+
+        test('case 3 (computed, no subsequent subscription in reaction after set()', () => {
+            const o1 = new Observable(0);
+            const c1 = new Computed(() => o1.get() + 1);
+            const r1 = new Reaction(() => {
+                if (c1.get() < 50000) {
+                    o1.set(o1.get() + 1);
+                }
+            })
+
+            r1.run();
+            expect(o1.get()).toBe(50000 - 1);
+            expect(c1.get()).toBe(50000);
+        });
+
+        test('case 4 (computed, subsequent subscription in reaction after set()', () => {
+            const o1 = new Observable(0);
+            const c1 = new Computed(() => o1.get() + 1);
+            const r1 = new Reaction(() => {
+                if (c1.get() < 50000) {
+                    o1.set(o1.get() + 1);
+
+                    c1.get();
+                }
+            })
+
+            r1.run();
+            expect(o1.get()).toBe(50000 - 1);
+            expect(c1.get()).toBe(50000);
+        });        
+    });
+
+    test('should recover after exception', () => {
+        const o1 = new Observable(0);
+        const o2 = new Observable(123);
+        const c1 = new Computed(() => o1.get() + 1);
+
+        let result;
+        const r1 = new Reaction(() => {
+            if (c1.get() < 2) {
+                throw new Error('Bad!');
+            }
+            result = o2.get();
+        });
+
+        expect(() => {
+            r1.run();
+        }).toThrow();
+
+        expect(() => {
+            o1.set(1);  // the reaction doesn't run because it's screwed by exception
+        }).not.toThrow();
+
+        expect(() => {
+            r1.run();   // the reaction doesn't throw now and recovers from exception
+        }).not.toThrow();
+
+        expect(result).toBe(123);
+
+        o2.set(456);
+        expect(result).toBe(456);
+    });
 })
 
 describe('Transactions tests', () => {
