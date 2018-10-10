@@ -576,6 +576,41 @@ describe('Reaction tests', () => {
         o2.set(456);
         expect(result).toBe(456);
     });
+
+    test('should not run after destroy', () => {
+        let res;
+        const o1 = new Observable(0);
+        const r1 = new Reaction(() => {
+            res = o1.get();
+        });
+        r1.run();
+        expect(res).toBe(0);
+        r1.destroy();
+        o1.set(10);
+        expect(res).toBe(0);
+        // should be ok again after manual run
+        r1.run();
+        expect(res).toBe(10);
+    });
+
+    test('should throw and be usable after it', () => {
+        let res;
+        const o1 = new Observable(1);
+        const o2 = new Observable(2);
+        const r = new Reaction(() => {
+            if (o1.get() < 2) {
+                throw new Error('too little');
+            } else {
+                res = o1.get() + o2.get()
+            }
+        });
+
+        expect(() => r.run()).toThrow();
+        expect(() => o1.set(2)).not.toThrow();
+        expect(res).toBe(2 + 2);
+        expect(() => o2.set(3)).not.toThrow();
+        expect(res).toBe(2 + 3);
+    })
 })
 
 describe('Transactions tests', () => {

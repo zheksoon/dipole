@@ -77,6 +77,8 @@ Reaction can be destroyed, so it will never run on changes after that:
 r.destroy();
 
 b.set(10);  // nothing happens
+
+r.run();    // prints 'c is 20' - alive again
 ```
 Dependencies of computed values and reactions can change:
 ```js
@@ -126,6 +128,22 @@ const forever = new Reaction(() => {
     counter.set(counter.get() + 1);
 });
 forever.run();  // never ends
+```
+If reaction throws, it will depend on observables used before the exception:
+```js
+const number = new Observable(9);
+const string = new Observable('hello');
+const throwwy = new Reaction(() => {
+    if (number.get() < 10) {
+        throw new Error('too little to me!')
+    } else {
+        console.log(string.get() + ' ' + number.get());
+    }
+});
+throwwy.run();          // throws
+string.set('ten')       // does nothing - the reaction still doesn't depend on it
+number.set(11);         // runs reaction and prints 'ten 11'
+string.set('eleven');   // prints 'eleven 11'
 ```
 
 ## Author

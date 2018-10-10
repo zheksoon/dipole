@@ -124,7 +124,7 @@ class Computed {
             return this._value;
         }        
 
-        let oldComputedContext = gComputedContext;
+        const oldComputedContext = gComputedContext;
         gComputedContext = this;
         this._state = states.COMPUTING;
         try {
@@ -187,13 +187,9 @@ class Reaction {
     }
 
     run() {
-        if (this._state == states.CLEAN) {
-            return;
-        }
-
         removeSubscriptions(this);
 
-        let oldComputedContext = gComputedContext;
+        const oldComputedContext = gComputedContext;
         gComputedContext = this;
         
         ++gTransactionDepth;
@@ -201,10 +197,8 @@ class Reaction {
         try {
             this._state = states.CLEAN;
             this._reaction();
-        }
-        catch (e) {
-            this.state = states.DIRTY;
-            throw e;
+            // return itself for simpler chaining like `const r = new Reaction(() => {}).run()`
+            return this;
         }
         finally {
             gComputedContext = oldComputedContext;
@@ -219,7 +213,7 @@ class Reaction {
     destroy() {
         // TODO: schedule execution of scheduled subscriptions removes after the call
         removeSubscriptions(this);
-        this.state = states.CLEAN;
+        this._state = states.CLEAN;
     }
 }
 
