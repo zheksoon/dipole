@@ -1,3 +1,6 @@
+import { randomInt } from './utils/random';
+import HashSet from './utils/hash-set';
+
 let gComputedContext = null;
 let gScheduledReactions = [];
 let gScheduledSubscribersChecks = [];
@@ -6,7 +9,8 @@ let gTransactionDepth = 0;
 const states = {
     CLEAN: 0,
     DIRTY: 1,
-    COMPUTING: 2,
+    NOTIFYING: 2,
+    COMPUTING: 3,
 }
 
 // Helper functions
@@ -44,18 +48,25 @@ function removeSubscriptions(self) {
 
 function trackComputedContext(self) {
     if (gComputedContext !== null) {
-        if (!self._subscribers.has(gComputedContext)) {
-            self._subscribers.add(gComputedContext);
+        if (self._subscribers.add(gComputedContext)) {
             gComputedContext._subscribeTo(self);
         }
     }
 }
 
 function notifyAndRemoveSubscribers(self) {
-    self._subscribers.forEach(subscriber => {
-        subscriber._notify();
-    });
-    self._subscribers.clear();
+    const subscribers = self._subscribers.items();
+    // destructively iterate through subscribers HashSet
+    // the subscribers HashSet is broken during the iteration,
+    // so we must check state when trying to use it
+    for (let i = 0; i < subscribers.length; i++) {
+        const subscriber = subscribers[i];
+        if (subscriber !== undefined) {
+            subscriber._notify();
+            subscribers[i] = undefined;
+        }
+    }
+    self._subscribers._size = 0;
 }
 
 function transaction(thunk) {
@@ -64,7 +75,7 @@ function transaction(thunk) {
         thunk();
     }
     finally {
-        if (--gTransactionDepth == 0) {
+        if (--gTransactionDepth === 0) {
             endTransaction();
         }
     }
@@ -77,8 +88,9 @@ function endTransaction() {
 
 class Observable {
     constructor(value) {
-        this._subscribers = new Set();
+        this._subscribers = new HashSet();
         this._value = value;
+        this._state = states.CLEAN;
     }
 
     get() {
@@ -88,25 +100,31 @@ class Observable {
 
     set(value) {
         if (gComputedContext instanceof Computed) {
-            throw new Error(`Can't change observable value inside of computed`);
+            throw new Error("Can't change observable value inside of computed");
         }
 
         this._value = value;
-        notifyAndRemoveSubscribers(this);
 
-        if (gTransactionDepth == 0) {
+        this._state = states.NOTIFYING;
+        notifyAndRemoveSubscribers(this);
+        this._state = states.CLEAN;
+
+        if (gTransactionDepth === 0)  {
             endTransaction();
         }
     }
 
     _unsubscribe(subscriber) {
-        this._subscribers.delete(subscriber);
+        if (this._state === states.NOTIFYING) return;
+
+        this._subscribers.remove(subscriber);
     }
 }
 
 class Computed {
     constructor(computer) {
-        this._subscribers = new Set();
+        this._hash = randomInt();
+        this._subscribers = new HashSet();
         this._value = undefined;
         this._subscriptions = [];
         this._computer = computer;
@@ -114,16 +132,20 @@ class Computed {
     }
 
     get() {
-        if (this._state == states.COMPUTING) {
-            throw new Error(`Trying to get computed value while in computing state`);
+        if (this._state === states.COMPUTING) {
+            throw new Error("Trying to get computed value while in computing state");
         }
 
         trackComputedContext(this);
 
-        if (this._state == states.CLEAN) {
+        if (this._state === states.CLEAN) {
             return this._value;
         }        
 
+        return this._recomputeValue()
+    }
+
+    _recomputeValue() {
         const oldComputedContext = gComputedContext;
         gComputedContext = this;
         this._state = states.COMPUTING;
@@ -146,22 +168,27 @@ class Computed {
     }
 
     _unsubscribe(subscriber) {
-        this._subscribers.delete(subscriber);
-        if (this._subscribers.size == 0) {
+        // do not react to unsubscribes when in NOTIFYING state,
+        // as _subscribers HashSet is broken
+        if (this._state === states.NOTIFYING) return;
+
+        this._subscribers.remove(subscriber);
+        if (this._subscribers.size() === 0) {
             scheduleSubscribersCheck(this);
         }
     }
 
     _notify() {
-        if (this._state == states.CLEAN) {
-            this._state = states.DIRTY;
+        if (this._state === states.CLEAN) {
+            this._state = states.NOTIFYING;
             notifyAndRemoveSubscribers(this);
+            this._state = states.DIRTY;
             removeSubscriptions(this);
         }
     }
 
     _checkSubscribers() {
-        if (this._subscribers.size == 0) {
+        if (this._subscribers.size() === 0) {
             removeSubscriptions(this);
             this._state = states.DIRTY;
         }
@@ -170,13 +197,14 @@ class Computed {
 
 class Reaction {
     constructor(reaction) {
+        this._hash = randomInt();
         this._subscriptions = [];
         this._state = states.DIRTY;
         this._reaction = reaction;
     }
 
     _notify() {
-        if (this._state == states.CLEAN) {
+        if (this._state === states.CLEAN) {
             this._state = states.DIRTY;
             scheduleReaction(this);
         }
@@ -203,7 +231,7 @@ class Reaction {
         finally {
             gComputedContext = oldComputedContext;
             // if we are about to end all transactions, run the rest of reactions inside it
-            if (gTransactionDepth == 1) {
+            if (gTransactionDepth === 1) {
                 endTransaction();
             }
             --gTransactionDepth;
@@ -211,13 +239,13 @@ class Reaction {
     }
 
     destroy() {
-        // TODO: schedule execution of scheduled subscriptions removes after the call
         removeSubscriptions(this);
         this._state = states.CLEAN;
+        runScheduledSubscribersChecks();
     }
 }
 
-module.exports = {
+export {
     Observable,
     Computed,
     Reaction,
