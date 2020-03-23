@@ -108,13 +108,13 @@ class HashSet {
         }
         if (items[hash] !== undefined) {
             // robin-hood strategy
-            let moveItem = undefined;
             let moveHash = (hash + 1) & modulo;
             while (items[moveHash] !== undefined) {
-                moveItem = items[moveHash];
                 moveHash = (moveHash + 1) & modulo;
             }
-            items[hash] = moveItem;
+            moveHash = (moveHash - 1) & modulo;
+            items[hash] = items[moveHash];
+            items[moveHash] = undefined;
             this._size--;
 
             return true;
