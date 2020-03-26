@@ -31,6 +31,11 @@
     "frp",
     "mobx"
   ],
+  "minify": {
+    "mangle": {
+      "reserved": ["HashSet", "Observable", "Computed", "Reaction"]
+    }
+  },
   "author": "Eugene Daragan",
   "license": "MIT"
 }

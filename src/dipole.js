@@ -22,7 +22,7 @@ function scheduleReaction(reaction) {
 function runScheduledReactions() {
     let reaction;
     while (reaction = gScheduledReactions.pop()) {
-        reaction.run();
+        reaction.runManager();
     }
 }
 
@@ -81,6 +81,25 @@ function transaction(thunk) {
     }
 }
 
+function action(fn) {
+    return function() {
+        // actions should not introduce new dependencies when obsesrvables are observed
+        const oldComputedContext = gComputedContext;
+        gComputedContext = null;
+
+        ++gTransactionDepth;
+        try {
+            return fn.apply(this, arguments)
+        }
+        finally {
+            if (--gTransactionDepth === 0) {
+                endTransaction();
+            }
+            gComputedContext = oldComputedContext;
+        }
+    }
+}
+
 function endTransaction() {
     runScheduledReactions();
     runScheduledSubscribersChecks();
@@ -98,6 +117,10 @@ class Observable {
         return this._value;
     }
 
+    peek() {
+        return this._value;
+    }
+
     set(value) {
         if (gComputedContext instanceof Computed) {
             throw new Error("Can't change observable value inside of computed");
@@ -105,6 +128,10 @@ class Observable {
 
         this._value = value;
 
+        this.notify()
+    }
+
+    notify() {
         this._state = states.NOTIFYING;
         notifyAndRemoveSubscribers(this);
         this._state = states.CLEAN;
@@ -113,7 +140,7 @@ class Observable {
             endTransaction();
         }
     }
-
+ 
     _unsubscribe(subscriber) {
         if (this._state === states.NOTIFYING) return;
 
@@ -142,7 +169,15 @@ class Computed {
             return this._value;
         }        
 
-        return this._recomputeValue()
+        return this._recomputeValue();
+    }
+
+    peek() {
+        if (this._state === states.CLEAN) {
+            return this._value;
+        }
+
+        return this._recomputeValue();
     }
 
     _recomputeValue() {
@@ -196,11 +231,13 @@ class Computed {
 }
 
 class Reaction {
-    constructor(reaction) {
+    constructor(reaction, context, manager) {
         this._hash = randomInt();
         this._subscriptions = [];
         this._state = states.DIRTY;
         this._reaction = reaction;
+        this._context = context || null;
+        this._manager = manager;
     }
 
     _notify() {
@@ -214,6 +251,14 @@ class Reaction {
         this._subscriptions.push(notifier);
     }
 
+    runManager() {
+        if (this._manager) {
+            return this._manager()
+         } else {
+            return this.run()
+         }
+    }
+
     run() {
         removeSubscriptions(this);
 
@@ -224,9 +269,7 @@ class Reaction {
 
         try {
             this._state = states.CLEAN;
-            this._reaction();
-            // return itself for simpler chaining like `const r = new Reaction(() => {}).run()`
-            return this;
+            return this._reaction.apply(this._context, arguments);
         }
         finally {
             gComputedContext = oldComputedContext;
@@ -245,9 +288,25 @@ class Reaction {
     }
 }
 
+function observable(value) {
+    return new Observable(value)
+}
+
+function computed(computer) {
+    return new Computed(computer)
+}
+
+function reaction(reactor, context, manager) {
+    return new Reaction(reactor, context, manager)
+}
+
 export {
     Observable,
+    observable,
     Computed,
+    computed,
     Reaction,
+    reaction,
     transaction,
+    action,
 }
