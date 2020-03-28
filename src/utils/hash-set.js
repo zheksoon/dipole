@@ -5,7 +5,6 @@ const FILL_FACTOR_BY_16 = 11;
 // Minimal hash table length
 const MIN_HASH_LENGTH = 4;
 
-
 /**
 * Creates new HashSet
 * @constructor
@@ -107,14 +106,27 @@ class HashSet {
             hash = (hash + 1) & modulo;
         }
         if (items[hash] !== undefined) {
-            // robin-hood strategy
-            let moveHash = (hash + 1) & modulo;
-            while (items[moveHash] !== undefined) {
-                moveHash = (moveHash + 1) & modulo;
+            // see https://github.com/leventov/Koloboke/blob/68515672575208e68b61fadfabdf68fda599ed5a/benchmarks/research/src/main/javaTemplates/com/koloboke/collect/research/hash/NoStatesLHashCharSet.java#L194-L212
+            let shiftHash = hash;
+            let shiftDistance = 1;
+
+            while (true) {
+                shiftHash = (shiftHash + 1) & modulo;
+                const item = items[shiftHash];
+                if (item === undefined) {
+                    items[hash] = undefined;
+                    break;
+                }
+                const keyDistance = (shiftHash - item._hash) & modulo;
+                if (keyDistance >= shiftDistance) {
+                    items[hash] = item;
+                    hash = shiftHash;
+                    shiftDistance = 1;
+                } else {
+                    shiftDistance++;
+                }
             }
-            moveHash = (moveHash - 1) & modulo;
-            items[hash] = items[moveHash];
-            items[moveHash] = undefined;
+
             this._size--;
 
             return true;

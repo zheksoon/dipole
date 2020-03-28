@@ -253,9 +253,10 @@ class Reaction {
 
     runManager() {
         if (this._manager) {
-            return this._manager()
+            removeSubscriptions(this);
+            return this._manager();
          } else {
-            return this.run()
+            return this.run();
          }
     }
 

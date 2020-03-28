@@ -1,5 +1,5 @@
 function randomInt() {
-	return Math.random() * 0x3FFFFFFF | 0;
+	return Math.random() * 1000000000 | 0;
 }
 
 export {
