@@ -1,10 +1,18 @@
 {
   "name": "dipole",
-  "version": "0.2.1",
+  "version": "1.0.0",
   "description": "Dipole - fast and simple MobX-like observables",
-  "source": "src/dipole.js",
   "main": "dist/dipole.js",
+  "module": "dist/dipole.mjs",
   "unpkg": "dist/dipole.umd.js",
+  "exports": {
+    ".": {
+      "browser": "./dist/dipole.js",
+      "umd": "./dist/dipole.umd.js",
+      "require": "./dist/dipole.js",
+      "import": "./dist/dipole.mjs"
+    }
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/zheksoon/dipole.git"
@@ -18,7 +26,7 @@
   },
   "scripts": {
     "test": "jest",
-    "build": "npx microbundle build"
+    "build": "npx microbundle build src/dipole.js"
   },
   "jest": {
     "testEnvironment": "node"
