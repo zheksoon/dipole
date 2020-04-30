@@ -1,9 +1,6 @@
 // Hash table fill-factor, multiplied by 16
-// 11/16 = 68.75%
-const FILL_FACTOR_BY_16 = 11;
-
-// Minimal hash table length
-const MIN_HASH_LENGTH = 4;
+// 12/16 = 75%
+const FILL_FACTOR_BY_16 = 12;
 
 /**
 * Creates new HashSet

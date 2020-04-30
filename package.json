@@ -1,7 +1,7 @@
 {
   "name": "dipole",
-  "version": "1.0.0",
-  "description": "Dipole - fast and simple MobX-like observables",
+  "version": "1.0.2",
+  "description": "Dipole - tiny reactive state management that just works",
   "main": "dist/dipole.js",
   "module": "dist/dipole.mjs",
   "unpkg": "dist/dipole.umd.js",
@@ -36,12 +36,20 @@
     "observables",
     "computed",
     "reactive",
+    "state management",
+    "functional reactive programming",
     "frp",
+    "tfrp",
     "mobx"
   ],
   "minify": {
     "mangle": {
-      "reserved": ["HashSet", "Observable", "Computed", "Reaction"]
+      "reserved": [
+        "HashSet",
+        "Observable",
+        "Computed",
+        "Reaction"
+      ]
     }
   },
   "author": "Eugene Daragan",

@@ -159,9 +159,7 @@ class Computed {
     }
 
     get() {
-        if (this._state === states.COMPUTING) {
-            throw new Error("Trying to get computed value while in computing state");
-        }
+        this._checkComputingState()
 
         trackComputedContext(this);
 
@@ -173,11 +171,24 @@ class Computed {
     }
 
     peek() {
+        this._checkComputingState()
+
         if (this._state === states.CLEAN) {
             return this._value;
         }
 
         return this._recomputeValue();
+    }
+
+    destroy() {
+        removeSubscriptions(this);
+        this._state = states.DIRTY;
+    }
+
+    _checkComputingState() {
+        if (this._state === states.COMPUTING) {
+            throw new Error("Trying to get computed value while in computing state");
+        }
     }
 
     _recomputeValue() {
