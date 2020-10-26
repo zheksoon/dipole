@@ -145,6 +145,18 @@ class HashSet {
     size() {
         return this._size;
     }
+
+    getDesiredStorageSize() {
+        let storageSize = 4, itemsCount = this._size;
+        while (itemsCount > (storageSize * FILL_FACTOR_BY_16) >> 4) storageSize *= 2;
+        return storageSize;
+    }
+
+    setStorageSize(storageSize) {
+        // storageSize must be power of 2
+        // _items should be empty at the moment
+        this._items.length = storageSize;
+    }
 }
 
 

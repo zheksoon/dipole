@@ -56,6 +56,7 @@ function trackComputedContext(self) {
 
 function notifyAndRemoveSubscribers(self) {
     const subscribers = self._subscribers.items();
+    const desiredStorageSize = self._subscribers.getDesiredStorageSize();
     // destructively iterate through subscribers HashSet
     // the subscribers HashSet is broken during the iteration,
     // so we must check state when trying to use it
@@ -67,6 +68,7 @@ function notifyAndRemoveSubscribers(self) {
         }
     }
     self._subscribers._size = 0;
+    self._subscribers.setStorageSize(desiredStorageSize);
 }
 
 function transaction(thunk) {
