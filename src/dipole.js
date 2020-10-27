@@ -49,14 +49,19 @@ function removeSubscriptions(self) {
 function trackComputedContext(self) {
     if (gComputedContext !== null) {
         if (self._subscribers.add(gComputedContext)) {
+            const subscribersCount = self._subscribers.size();
+            if (subscribersCount > self._maxSubscribersCount) {
+                self._maxSubscribersCount = subscribersCount
+            }
             gComputedContext._subscribeTo(self);
         }
     }
 }
 
 function notifyAndRemoveSubscribers(self) {
-    const subscribers = self._subscribers.items();
-    const desiredStorageSize = self._subscribers.getDesiredStorageSize();
+    const subscribersSet = self._subscribers;
+    const subscribers = subscribersSet.items();
+    const desiredStorageSize = subscribersSet.getDesiredStorageSize(self._maxSubscribersCount);
     // destructively iterate through subscribers HashSet
     // the subscribers HashSet is broken during the iteration,
     // so we must check state when trying to use it
@@ -67,8 +72,8 @@ function notifyAndRemoveSubscribers(self) {
             subscribers[i] = undefined;
         }
     }
-    self._subscribers._size = 0;
-    self._subscribers.setStorageSize(desiredStorageSize);
+    subscribersSet._size = 0;
+    subscribersSet.setStorageSize(desiredStorageSize);
 }
 
 function transaction(thunk) {
@@ -110,6 +115,7 @@ function endTransaction() {
 class Observable {
     constructor(value) {
         this._subscribers = new HashSet();
+        this._maxSubscribersCount = 0;
         this._value = value;
         this._state = states.CLEAN;
     }
@@ -154,6 +160,7 @@ class Computed {
     constructor(computer) {
         this._hash = randomInt();
         this._subscribers = new HashSet();
+        this._maxSubscribersCount = 0;
         this._value = undefined;
         this._subscriptions = [];
         this._computer = computer;
@@ -237,8 +244,8 @@ class Computed {
 
     _checkSubscribers() {
         if (this._subscribers.size() === 0) {
-            removeSubscriptions(this);
             this._state = states.DIRTY;
+            removeSubscriptions(this);
         }
     }
 }

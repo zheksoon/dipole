@@ -146,8 +146,8 @@ class HashSet {
         return this._size;
     }
 
-    getDesiredStorageSize() {
-        let storageSize = 4, itemsCount = this._size;
+    getDesiredStorageSize(itemsCount) {
+        let storageSize = 4;
         while (itemsCount > (storageSize * FILL_FACTOR_BY_16) >> 4) storageSize *= 2;
         return storageSize;
     }
