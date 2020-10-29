@@ -61,6 +61,7 @@ function trackComputedContext(self) {
 function notifyAndRemoveSubscribers(self) {
     const subscribersSet = self._subscribers;
     const subscribers = subscribersSet.items();
+    // plan HashSet capacity for the new round
     const desiredStorageSize = subscribersSet.getDesiredStorageSize(self._maxSubscribersCount);
     // destructively iterate through subscribers HashSet
     // the subscribers HashSet is broken during the iteration,
@@ -74,6 +75,8 @@ function notifyAndRemoveSubscribers(self) {
     }
     subscribersSet._size = 0;
     subscribersSet.setStorageSize(desiredStorageSize);
+    // reset capacity counter
+    self._maxSubscribersCount = 0;
 }
 
 function transaction(thunk) {
