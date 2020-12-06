@@ -79,7 +79,7 @@ function notifyAndRemoveSubscribers(self) {
     self._maxSubscribersCount = 0;
 }
 
-function transaction(thunk) {
+function tx(thunk) {
     ++gTransactionDepth;
     try {
         thunk();
@@ -110,6 +110,17 @@ function action(fn) {
     }
 }
 
+function untracked(fn) {
+    const oldComputedContext = gComputedContext;
+    gComputedContext = null;
+    try {
+        return fn();
+    }
+    finally {
+        gComputedContext = oldComputedContext;
+    }
+}
+
 function endTransaction() {
     runScheduledReactions();
     runScheduledSubscribersChecks();
@@ -125,10 +136,6 @@ class Observable {
 
     get() {
         trackComputedContext(this);
-        return this._value;
-    }
-
-    peek() {
         return this._value;
     }
 
@@ -182,19 +189,10 @@ class Computed {
         return this._recomputeValue();
     }
 
-    peek() {
-        this._checkComputingState()
-
-        if (this._state === states.CLEAN) {
-            return this._value;
-        }
-
-        return this._recomputeValue();
-    }
-
     destroy() {
         removeSubscriptions(this);
         this._state = states.DIRTY;
+        runScheduledSubscribersChecks();
     }
 
     _checkComputingState() {
@@ -307,7 +305,7 @@ class Reaction {
 
     destroy() {
         removeSubscriptions(this);
-        this._state = states.CLEAN;
+        this._state = states.DIRTY;
         runScheduledSubscribersChecks();
     }
 }
@@ -324,6 +322,47 @@ function reaction(reactor, context, manager) {
     return new Reaction(reactor, context, manager)
 }
 
+// declare shorthands for observable props
+// the difference is defined in dipole.d.ts
+observable.prop = observable;
+computed.prop = computed;
+
+function makeObservable(obj) {
+    const descriptors = [];
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            const prop = obj[key];
+            if (prop instanceof Observable) {
+                descriptors.push({
+                    key: key,
+                    enumerable: true,
+                    configurable: true,
+                    get() {
+                        return prop.get()
+                    },
+                    set(value) {
+                        prop.set(value)
+                    },
+                })
+            } else if (prop instanceof Computed) {
+                descriptors.push({
+                    key: key,
+                    enumerable: true,
+                    configurable: true,
+                    get() {
+                        return prop.get()
+                    },
+                })
+            }
+        }
+    }
+    for (let i = 0; i < descriptors.length; i++) {
+        const descriptor = descriptors[i];
+        Object.defineProperty(obj, descriptor.key, descriptor);
+    }
+    return obj;
+}
+
 export {
     Observable,
     observable,
@@ -331,6 +370,8 @@ export {
     computed,
     Reaction,
     reaction,
-    transaction,
+    tx,
     action,
+    untracked,
+    makeObservable,
 }

@@ -1,4 +1,4 @@
-const { Observable, Computed, Reaction, transaction } = require('../dist/dipole');
+const { Observable, Computed, Reaction, tx } = require('../dist/dipole');
 
 
 let trackedUpdatesCounter = new WeakMap();
@@ -623,7 +623,7 @@ describe('Transactions tests', () => {
 
         expect(out).toBe(0);
 
-        transaction(() => {
+        tx(() => {
             o1.set(1);
         });
 
@@ -644,7 +644,7 @@ describe('Transactions tests', () => {
         expect(out).toBe(3);
         expect(trackedUpdates(r1)).toBe(1);
 
-        transaction(() => {
+        tx(() => {
             o1.set(3);
             o2.set(4);
         });
@@ -653,7 +653,7 @@ describe('Transactions tests', () => {
         expect(trackedUpdates(r1)).toBe(2);
     });
 
-    test('get computed value inside a transaction', () => {
+    test('get computed value inside a tx', () => {
         let out;
         const o1 = new Observable(true);
         const o2 = new Observable(3);
@@ -676,7 +676,7 @@ describe('Transactions tests', () => {
         expect(trackedUpdates(r1)).toBe(1);
         expect(trackedUpdates(c1)).toBe(1);
 
-        transaction(() => {
+        tx(() => {
             o1.set(false);
             o3.set(5);
 
