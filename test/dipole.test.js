@@ -1,4 +1,4 @@
-const { Observable, Computed, Reaction, tx } = require('../dist/dipole');
+const { Observable, Computed, Reaction, tx } = require('../dist/index.js');
 
 
 let trackedUpdatesCounter = new WeakMap();

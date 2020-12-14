@@ -2,16 +2,16 @@
   "name": "dipole",
   "version": "2.0.0",
   "description": "Dipole - tiny reactive state management that just works",
-  "main": "dist/dipole.js",
-  "module": "dist/dipole.mjs",
-  "unpkg": "dist/dipole.umd.js",
-  "types": "./src/dipole.d.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "unpkg": "dist/index.umd.js",
+  "types": "./src/index.d.ts",
   "exports": {
     ".": {
-      "browser": "./dist/dipole.js",
-      "umd": "./dist/dipole.umd.js",
-      "require": "./dist/dipole.js",
-      "import": "./dist/dipole.mjs"
+      "browser": "./dist/index.js",
+      "umd": "./dist/index.umd.js",
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs"
     }
   },
   "repository": {
@@ -27,7 +27,7 @@
   },
   "scripts": {
     "test": "jest",
-    "build": "npx microbundle build src/dipole.js"
+    "build": "npx microbundle build src/index.js"
   },
   "jest": {
     "testEnvironment": "node"

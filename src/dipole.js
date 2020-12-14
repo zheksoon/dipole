@@ -327,42 +327,6 @@ function reaction(reactor, context, manager) {
 observable.prop = observable;
 computed.prop = computed;
 
-function makeObservable(obj) {
-    const descriptors = [];
-    for (const key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
-            const prop = obj[key];
-            if (prop instanceof Observable) {
-                descriptors.push({
-                    key: key,
-                    enumerable: true,
-                    configurable: true,
-                    get() {
-                        return prop.get()
-                    },
-                    set(value) {
-                        prop.set(value)
-                    },
-                })
-            } else if (prop instanceof Computed) {
-                descriptors.push({
-                    key: key,
-                    enumerable: true,
-                    configurable: true,
-                    get() {
-                        return prop.get()
-                    },
-                })
-            }
-        }
-    }
-    for (let i = 0; i < descriptors.length; i++) {
-        const descriptor = descriptors[i];
-        Object.defineProperty(obj, descriptor.key, descriptor);
-    }
-    return obj;
-}
-
 export {
     Observable,
     observable,
@@ -373,5 +337,4 @@ export {
     tx,
     action,
     untracked,
-    makeObservable,
 }
