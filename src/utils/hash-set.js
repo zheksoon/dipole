@@ -62,11 +62,11 @@ class HashSet {
     }
 
     /**
-    * Removed item from HashSet. Returns true if item was removed,
+    * Delete item from HashSet. Returns true if item was deleted,
     * false if item wasn't found in hash table. Do not rehash table at the moment.
-    * @param item {object} - item to remove
+    * @param item {object} - item to delete
     */
-    remove(item) {
+    delete(item) {
         const items = this._items;
         const length = items.length;
         const modulo = length - 1;
@@ -105,17 +105,17 @@ class HashSet {
     }
 
     /** 
-    * Returns hash table items storage. Storage items 
-    * should be checked for undefined before any use.
-    */
-    items() {
+     * Returns hash table items storage. Storage items 
+     * should be checked for undefined before any use.
+     */
+    values() {
         return this._items;
     }
 
     /** 
-    * Returns hash table size
-    */
-    size() {
+     * Returns hash table size
+     */
+    get size() {
         return this._size;
     }
 
@@ -131,6 +131,5 @@ class HashSet {
         this._items.length = storageSize;
     }
 }
-
 
 export default HashSet

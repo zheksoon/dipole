@@ -49,7 +49,7 @@ function removeSubscriptions(self) {
 function trackComputedContext(self) {
     if (gComputedContext !== null) {
         if (self._subscribers.add(gComputedContext)) {
-            const subscribersCount = self._subscribers.size();
+            const subscribersCount = self._subscribers.size;
             if (subscribersCount > self._maxSubscribersCount) {
                 self._maxSubscribersCount = subscribersCount
             }
@@ -60,7 +60,7 @@ function trackComputedContext(self) {
 
 function notifyAndRemoveSubscribers(self) {
     const subscribersSet = self._subscribers;
-    const subscribers = subscribersSet.items();
+    const subscribers = subscribersSet.values();
     // plan HashSet capacity for the new round
     const desiredStorageSize = subscribersSet.getDesiredStorageSize(self._maxSubscribersCount);
     // destructively iterate through subscribers HashSet
@@ -162,7 +162,7 @@ class Observable {
     _unsubscribe(subscriber) {
         if (this._state === states.NOTIFYING) return;
 
-        this._subscribers.remove(subscriber);
+        this._subscribers.delete(subscriber);
     }
 }
 
@@ -228,8 +228,8 @@ class Computed {
         // as _subscribers HashSet is broken
         if (this._state === states.NOTIFYING) return;
 
-        this._subscribers.remove(subscriber);
-        if (this._subscribers.size() === 0) {
+        this._subscribers.delete(subscriber);
+        if (this._subscribers.size === 0) {
             scheduleSubscribersCheck(this);
         }
     }
@@ -244,7 +244,7 @@ class Computed {
     }
 
     _checkSubscribers() {
-        if (this._subscribers.size() === 0) {
+        if (this._subscribers.size === 0) {
             this._state = states.DIRTY;
             removeSubscriptions(this);
         }
