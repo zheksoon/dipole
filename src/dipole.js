@@ -1,6 +1,3 @@
-import { randomInt } from './utils/random';
-import HashSet from './utils/hash-set';
-
 let gComputedContext = null;
 let gScheduledReactions = [];
 let gScheduledSubscribersChecks = [];
@@ -48,11 +45,9 @@ function removeSubscriptions(self) {
 
 function trackComputedContext(self) {
     if (gComputedContext !== null) {
-        if (self._subscribers.add(gComputedContext)) {
-            const subscribersCount = self._subscribers.size;
-            if (subscribersCount > self._maxSubscribersCount) {
-                self._maxSubscribersCount = subscribersCount
-            }
+        if (! self._subscribers.has(gComputedContext)) {
+            self._subscribers.add(gComputedContext);
+
             gComputedContext._subscribeTo(self);
         }
     }
@@ -61,22 +56,12 @@ function trackComputedContext(self) {
 function notifyAndRemoveSubscribers(self) {
     const subscribersSet = self._subscribers;
     const subscribers = subscribersSet.values();
-    // plan HashSet capacity for the new round
-    const desiredStorageSize = subscribersSet.getDesiredStorageSize(self._maxSubscribersCount);
-    // destructively iterate through subscribers HashSet
-    // the subscribers HashSet is broken during the iteration,
-    // so we must check state when trying to use it
-    for (let i = 0; i < subscribers.length; i++) {
-        const subscriber = subscribers[i];
-        if (subscriber !== undefined) {
-            subscriber._notify();
-            subscribers[i] = undefined;
-        }
+    
+    for (let subscriber of subscribers) {
+        subscriber._notify();
+        
+        subscribersSet.delete(subscriber);
     }
-    subscribersSet._size = 0;
-    subscribersSet.setStorageSize(desiredStorageSize);
-    // reset capacity counter
-    self._maxSubscribersCount = 0;
 }
 
 function tx(thunk) {
@@ -128,8 +113,7 @@ function endTransaction() {
 
 class Observable {
     constructor(value) {
-        this._subscribers = new HashSet();
-        this._maxSubscribersCount = 0;
+        this._subscribers = new Set();
         this._value = value;
         this._state = states.CLEAN;
     }
@@ -168,9 +152,7 @@ class Observable {
 
 class Computed {
     constructor(computer) {
-        this._hash = randomInt();
-        this._subscribers = new HashSet();
-        this._maxSubscribersCount = 0;
+        this._subscribers = new Set();
         this._value = undefined;
         this._subscriptions = [];
         this._computer = computer;
@@ -224,10 +206,6 @@ class Computed {
     }
 
     _unsubscribe(subscriber) {
-        // do not react to unsubscribes when in NOTIFYING state,
-        // as _subscribers HashSet is broken
-        if (this._state === states.NOTIFYING) return;
-
         this._subscribers.delete(subscriber);
         if (this._subscribers.size === 0) {
             scheduleSubscribersCheck(this);
@@ -253,7 +231,6 @@ class Computed {
 
 class Reaction {
     constructor(reaction, context, manager) {
-        this._hash = randomInt();
         this._subscriptions = [];
         this._state = states.DIRTY;
         this._reaction = reaction;

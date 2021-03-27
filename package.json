@@ -46,7 +46,6 @@
   "minify": {
     "mangle": {
       "reserved": [
-        "HashSet",
         "Observable",
         "Computed",
         "Reaction"
