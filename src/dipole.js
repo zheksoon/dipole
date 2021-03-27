@@ -57,7 +57,13 @@ function notifyAndRemoveSubscribers(self) {
     const subscribersSet = self._subscribers;
     const subscribers = subscribersSet.values();
     
-    for (let subscriber of subscribers) {
+    while (true) {
+        let { value: subscriber, done } = subscribers.next();
+
+        if (done) {
+            break;
+        }
+
         subscriber._notify();
         
         subscribersSet.delete(subscriber);
