@@ -47,9 +47,13 @@ declare module "dipole" {
         fn: (...args: T) => U
     ): (...args: T) => U;
 
-    export function tx(thunk: () => void): void;
+    export function tx(thunk: () => unknown): void;
+    
+    export function utx<T>(fn: () => T): T;
 
-    export function untracked<T>(fn: () => T): T;
+    export function fromGetter<T>(gettersThunk: () => T): IGettable<T> | undefined;
+
+    export function notify(gettersThunk: () => unknown): void;
 
     export function makeObservable<T extends object>(obj: T): T; 
 }
