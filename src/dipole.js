@@ -205,7 +205,12 @@ class Computed {
     }
 
     _unsubscribe(subscriber) {
+        if (this._state === states.NOTIFYING) {
+            return; // do not react to unsubscribes when in NOTIFYING state
+        }
+
         this._subscribers.delete(subscriber);
+        
         if (this._subscribers.size === 0) {
             scheduleSubscribersCheck(this);
         }
