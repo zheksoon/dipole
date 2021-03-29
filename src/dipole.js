@@ -54,20 +54,13 @@ function trackComputedContext(self) {
 }
 
 function notifyAndRemoveSubscribers(self) {
-    const subscribersSet = self._subscribers;
-    const subscribers = subscribersSet.values();
+    const subscribers = self._subscribers;
     
-    while (true) {
-        let { value: subscriber, done } = subscribers.next();
-
-        if (done) {
-            break;
-        }
-
+    subscribers.forEach(subscriber => {
         subscriber._notify();
-        
-        subscribersSet.delete(subscriber);
-    }
+    });
+    
+    subscribers.clear();
 }
 
 function tx(thunk) {
