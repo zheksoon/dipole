@@ -11,10 +11,6 @@ Dipole is tiny (just over 1K min gz) reactive state management library that coul
  * Performance optimizations - even with a huge amount of observable/computed values dipole runs as efficiently as possible
  * Good test suit
 
-## Introduction
-
-Dipole core consists three main classes: `Observable`, `Computed` and `Reaction`. All the classes can be constructed via non-capitalized factory functions `observable`, `computed` and `reaction` correspondingly without `new` keyword.
-
 # Usage with React bindings
 
 ## Example 0: Counter. Basics of observables and actions
@@ -137,6 +133,8 @@ ReactDOM.render(<CounterList model={counterListModel} />, document.getElementByI
 
 ## Introduction into core features
 
+Dipole core consists three main classes: `Observable`, `Computed` and `Reaction`. All the classes can be constructed via non-capitalized factory functions `observable`, `computed` and `reaction` correspondingly without `new` keyword.
+
 ### Observable
 
 Observables are containers that contain some value and allow some other dependent objects to get notified when the value changes.
@@ -176,7 +174,7 @@ Only object's own properties [are converted](#make-observable).
 
 (You may also have noticed that code from [Examples](#examples) section uses `observable.prop` instead of `observable` for defining fields - in fact, it's exactly the same function, the only difference is [its Typescript definition](https://github.com/zheksoon/dipole/blob/master/src/index.d.ts#L30): type of `observable.prop(T)` is `T`, while type of `observable(T)` is `Observable<T>`)
 
-There are also few helper functions designed to work with `makeObservable`: [fromGetter](#from-getter) and [notify](#notify).
+There are also few helper functions designed to work with `makeObservable`: [fromGetter](#fromgetter) and [notify](#notify).
 
 ### Computed
 
