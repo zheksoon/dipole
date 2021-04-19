@@ -348,13 +348,13 @@ describe('Computed tests', () => {
         const c = computed(() => { trackUpdate(c); return o.get() + 1 });
         c.get();
         expect(trackedUpdates(c)).toBe(1);
-        expect(o._subscribers.size()).toBe(1);
+        expect(o._subscribers.size).toBe(1);
         c.destroy();
         expect(trackedUpdates(c)).toBe(1);
-        expect(o._subscribers.size()).toBe(0);
+        expect(o._subscribers.size).toBe(0);
         c.get();
         expect(trackedUpdates(c)).toBe(2);
-        expect(o._subscribers.size()).toBe(1);
+        expect(o._subscribers.size).toBe(1);
     });
 });
 
