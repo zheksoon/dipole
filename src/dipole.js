@@ -2,6 +2,10 @@ let gComputedContext = null;
 let gScheduledReactions = [];
 let gScheduledSubscribersChecks = [];
 let gTransactionDepth = 0;
+let gGettersSpyResult = undefined;
+
+const gettersSpyContext = {};
+const gettersNotifyContext = {};
 
 const states = {
     CLEAN: 0,
@@ -44,13 +48,23 @@ function removeSubscriptions(self) {
 }
 
 function trackComputedContext(self) {
+    // return false if we are in special context
     if (gComputedContext !== null) {
-        if (! self._subscribers.has(gComputedContext)) {
+        // handle special context types
+        if (gComputedContext === gettersSpyContext) {
+            gGettersSpyResult = self;
+            return false;
+        }
+        if (gComputedContext === gettersNotifyContext) {
+            self.notify();
+            return false;
+        }
+        if (!self._subscribers.has(gComputedContext)) {
             self._subscribers.add(gComputedContext);
-
             gComputedContext._subscribeTo(self);
         }
     }
+    return true;
 }
 
 function notifyAndRemoveSubscribers(self) {
@@ -63,6 +77,7 @@ function notifyAndRemoveSubscribers(self) {
     subscribers.clear();
 }
 
+// Transaction (TX)
 function tx(thunk) {
     ++gTransactionDepth;
     try {
@@ -75,7 +90,25 @@ function tx(thunk) {
     }
 }
 
+// Untracked Transaction (UTX)
+function utx(fn) {
+    const oldComputedContext = gComputedContext;
+    gComputedContext = null;
+
+    ++gTransactionDepth;
+    try {
+        return fn();
+    }
+    finally {
+        if (--gTransactionDepth === 0) {
+            endTransaction();
+        }
+        gComputedContext = oldComputedContext;
+    }
+}
+
 function action(fn) {
+    // Do not DRY with `utx()` because of extra work for applying `this` and `arguments` to `fn`
     return function() {
         // actions should not introduce new dependencies when obsesrvables are observed
         const oldComputedContext = gComputedContext;
@@ -94,13 +127,24 @@ function action(fn) {
     }
 }
 
-function untracked(fn) {
+function fromGetter(gettersThunk) {
     const oldComputedContext = gComputedContext;
-    gComputedContext = null;
+    gComputedContext = gettersSpyContext;
     try {
-        return fn();
+        gettersThunk();
+        return gGettersSpyResult;
+    } finally {
+        gComputedContext = oldComputedContext;
+        gGettersSpyResult = undefined;
     }
-    finally {
+}
+
+function notify(gettersThunk) {
+    const oldComputedContext = gComputedContext;
+    gComputedContext = gettersNotifyContext;
+    try {
+        tx(gettersThunk);
+    } finally {
         gComputedContext = oldComputedContext;
     }
 }
@@ -159,9 +203,14 @@ class Computed {
     }
 
     get() {
-        this._checkComputingState()
+        if (this._state === states.COMPUTING) {
+            throw new Error("Trying to get computed value while in computing state");
+        }
 
-        trackComputedContext(this);
+        if (!trackComputedContext(this)) {
+            // do not trigger recompute if we are in special context
+            return this._value;
+        }
 
         if (this._state === states.CLEAN) {
             return this._value;
@@ -174,12 +223,6 @@ class Computed {
         removeSubscriptions(this);
         this._state = states.DIRTY;
         runScheduledSubscribersChecks();
-    }
-
-    _checkComputingState() {
-        if (this._state === states.COMPUTING) {
-            throw new Error("Trying to get computed value while in computing state");
-        }
     }
 
     _recomputeValue() {
@@ -316,6 +359,8 @@ export {
     Reaction,
     reaction,
     tx,
+    utx,
     action,
-    untracked,
+    fromGetter,
+    notify,
 }

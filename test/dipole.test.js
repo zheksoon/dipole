@@ -1,4 +1,4 @@
-const { Observable, Computed, Reaction, tx } = require('../dist/index.js');
+const { observable, Observable, computed, Computed, reaction, Reaction, tx, action, utx, makeObservable, notify, fromGetter } = require('../dist/index.js');
 
 
 let trackedUpdatesCounter = new WeakMap();
@@ -18,26 +18,31 @@ beforeEach(() => {
 
 
 describe('Observable tests', () => {
-    test('creates new observable', () => {
+    test('creates observable', () => {
         expect(() => {
-            new Observable();
-            new Observable(0);
-            new Observable(1);
-            new Observable(false);
-            new Observable(true);
-            new Observable('hello');
-            new Observable({});
-            new Observable([]);
+            observable();
+            observable(0);
+            observable(1);
+            observable(false);
+            observable(true);
+            observable('hello');
+            observable({});
+            observable([]);
         }).not.toThrow();
     })
 
-    test('creates new observable and gets value', () => {
-        const o1 = new Observable(42);
+    test('observable creates instance of Observable', () => {
+        const o = observable(0);
+        expect(o).toBeInstanceOf(Observable);
+    })
+
+    test('creates observable and gets value', () => {
+        const o1 = observable(42);
         expect(o1.get()).toBe(42);
     })
 
     test('sets observable value', () => {
-        const o1 = new Observable(0);
+        const o1 = observable(0);
         expect(o1.get()).toBe(0);
         o1.set(10);
         expect(o1.get()).toBe(10);
@@ -47,13 +52,18 @@ describe('Observable tests', () => {
 describe('Computed tests', () => {
     test('creates computed', () => {
         expect(() => {
-            new Computed(() => {});
-            new Computed(function() {});
+            computed(() => {});
+            computed(function() {});
         }).not.toThrow();
     })
 
+    test('computed creates instance of Computed', () => {
+        const c = computed(() => {});
+        expect(c).toBeInstanceOf(Computed);
+    })
+
     test('runs computer fn', () => {
-        const c1 = new Computed(self => {
+        const c1 = computed(() => {
             trackUpdate(c1);
             return 42;
         });
@@ -63,9 +73,9 @@ describe('Computed tests', () => {
     })
 
     test('works with observables', () => {
-        const o1 = new Observable(1);
-        const o2 = new Observable(2);
-        const c1 = new Computed(self => {
+        const o1 = observable(1);
+        const o2 = observable(2);
+        const c1 = computed(() => {
             trackUpdate(c1);
             return o1.get() + o2.get();
         })
@@ -75,9 +85,9 @@ describe('Computed tests', () => {
     })
 
     test('caches result', () => {
-        const o1 = new Observable('hello');
-        const o2 = new Observable('world');
-        const c1 = new Computed(self => {
+        const o1 = observable('hello');
+        const o2 = observable('world');
+        const c1 = computed(() => {
             trackUpdate(c1);
             return o1.get() + ' ' + o2.get();
         })
@@ -90,9 +100,9 @@ describe('Computed tests', () => {
     })
 
     test('invalidated by observable changes', () => {
-        const o1 = new Observable(1);
-        const o2 = new Observable(2);
-        const c1 = new Computed(self => {
+        const o1 = observable(1);
+        const o2 = observable(2);
+        const c1 = computed(() => {
             trackUpdate(c1);
             return o1.get() + o2.get();
         })
@@ -105,12 +115,12 @@ describe('Computed tests', () => {
     })
 
     test('invalidated observable chain changes 1 (triangle)', () => {
-        const o1 = new Observable(2);
-        const c1 = new Computed(self => {
+        const o1 = observable(2);
+        const c1 = computed(() => {
             trackUpdate(c1);
             return o1.get() * o1.get();
         })
-        const c2 = new Computed(self => {
+        const c2 = computed(() => {
             trackUpdate(c2);
             return o1.get() * c1.get();
         })
@@ -126,16 +136,16 @@ describe('Computed tests', () => {
     })
 
     test('invalidated by observable chain changes 2 (diamond)', () => {
-        const o1 = new Observable('hi');
-        const c1 = new Computed(self => {
+        const o1 = observable('hi');
+        const c1 = computed(() => {
             trackUpdate(c1);
             return o1.get() + ' ' + o1.get();
         })
-        const c2 = new Computed(self => {
+        const c2 = computed(() => {
             trackUpdate(c2);
             return o1.get() + '!';
         })
-        const c3 = new Computed(self => {
+        const c3 = computed(() => {
             trackUpdate(c3);
             return c1.get() + ' ' + c2.get();
         })
@@ -153,10 +163,10 @@ describe('Computed tests', () => {
     })
 
     test('invalidated by conditional observable dependence', () => {
-        const cond = new Observable(true);
-        const o1 = new Observable(5);
-        const o2 = new Observable(10);
-        const c1 = new Computed(() => {
+        const cond = observable(true);
+        const o1 = observable(5);
+        const o2 = observable(10);
+        const c1 = computed(() => {
             trackUpdate(c1);
             return cond.get() ? o1.get() : o2.get();
         })
@@ -191,19 +201,19 @@ describe('Computed tests', () => {
     })
 
     test('invalidated by conditional computed dependence', () => {
-        const cond0 = new Observable(false);
-        const o1 = new Observable(5);
-        const o2 = new Observable(10);
-        const cond1 = new Computed(() => {
+        const cond0 = observable(false);
+        const o1 = observable(5);
+        const o2 = observable(10);
+        const cond1 = computed(() => {
             return !cond0.get();
         });
-        const c1 = new Computed(() => {
+        const c1 = computed(() => {
             return o1.get() + 1;
         })
-        const c2 = new Computed(() => {
+        const c2 = computed(() => {
             return o2.get() + 1;
         })
-        const c3 = new Computed(() => {
+        const c3 = computed(() => {
             trackUpdate(c3);
             return cond1.get() ? c1.get() : c2.get();
         })
@@ -238,10 +248,10 @@ describe('Computed tests', () => {
     })
 
     test('invalidated by conditional computed dependence (many)', () => {
-        const obs = new Array(128).fill(0).map((_, i) => new Observable(i));
-        const comp = obs.map((o, i) => new Computed(() => o.get()));
-        const selector = new Observable(0);
-        const value = new Computed(() => {
+        const obs = new Array(128).fill(0).map((_, i) => observable(i));
+        const comp = obs.map((o, i) => computed(() => o.get()));
+        const selector = observable(0);
+        const value = computed(() => {
             return comp[selector.get()].get();
         });
 
@@ -258,7 +268,7 @@ describe('Computed tests', () => {
     })
 
     test('throws when has recursive dependencies', () => {
-        const c1 = new Computed(() => {
+        const c1 = computed(() => {
             return c1.get() * 2;
         });
 
@@ -268,11 +278,11 @@ describe('Computed tests', () => {
     })
 
     test('throws when has recursive dependencies', () => {
-        const c1 = new Computed(() => {
+        const c1 = computed(() => {
             return c2.get() * 2;
         });
 
-        const c2 = new Computed(() => {
+        const c2 = computed(() => {
             return c1.get() + 1;
         });
 
@@ -286,7 +296,7 @@ describe('Computed tests', () => {
     })
 
     test('rethrows exceptions', () => {
-        const c1 = new Computed(() => {
+        const c1 = computed(() => {
             throw new Error('boom!');
         })
 
@@ -296,8 +306,8 @@ describe('Computed tests', () => {
     })
 
     test('restores after exception', () => {
-        const o1 = new Observable(10);
-        const c1 = new Computed(() => {
+        const o1 = observable(10);
+        const c1 = computed(() => {
             if (o1.get() < 0) {
                 throw new Error('less than zero');
             }
@@ -321,30 +331,44 @@ describe('Computed tests', () => {
     });
 
     test('throws when trying to change observable inside of computed', () => {
-        const o1 = new Observable(0);
-        const o2 = new Observable(1);
+        const o1 = observable(0);
+        const o2 = observable(1);
 
-        const c1 = new Computed(() => {
+        const c1 = computed(() => {
             o2.set(o1.get() + o2.get());
         });
 
         expect(() => {
             c1.get();
         }).toThrow();
-    })
+    });
+
+    test('destroy method invalidates computed', () => {
+        const o = observable(1);
+        const c = computed(() => { trackUpdate(c); return o.get() + 1 });
+        c.get();
+        expect(trackedUpdates(c)).toBe(1);
+        expect(o._subscribers.size()).toBe(1);
+        c.destroy();
+        expect(trackedUpdates(c)).toBe(1);
+        expect(o._subscribers.size()).toBe(0);
+        c.get();
+        expect(trackedUpdates(c)).toBe(2);
+        expect(o._subscribers.size()).toBe(1);
+    });
 });
 
 describe('Reaction tests', () => {
     test('create reaction', () => {
         expect(() => {
-            new Reaction(() => {});
-            new Reaction(function() {})
+            reaction(() => {});
+            reaction(function() {})
         }).not.toThrow();
     })
 
     test('run simple reaction', () => {
         let out;
-        const r1 = new Reaction(() => {
+        const r1 = reaction(() => {
             trackUpdate(r1);
             out = 1;
         });
@@ -354,10 +378,29 @@ describe('Reaction tests', () => {
         expect(trackedUpdates(r1)).toBe(1);
     })
 
+    test('passes this to reaction body', () => {
+        let a;
+        const obj = { a: 5 };
+        const r = reaction(function() {
+            a = this.a;
+        }, obj);
+        r.run();
+        expect(a).toBe(5);
+    });
+
+    test('passes arguments to reaction body', () => {
+        let a;
+        const r = reaction((...args) => {
+            a = args;
+        });
+        r.run(1, 2, 'a');
+        expect(a).toEqual([1, 2, 'a']);
+    });
+
     test('run reaction with observable dependence', () => {
         let out;
-        const o1 = new Observable(1);
-        const r1 = new Reaction(() => {
+        const o1 = observable(1);
+        const r1 = reaction(() => {
             trackUpdate(r1);
             out = o1.get() * 2;
         });
@@ -373,12 +416,12 @@ describe('Reaction tests', () => {
 
     test('run reaction with computed dependence', () => {
         let out;
-        const o1 = new Observable(1);
-        const c1 = new Computed(() => {
+        const o1 = observable(1);
+        const c1 = computed(() => {
             trackUpdate(c1);
             return o1.get() + 1;
         })
-        const r1 = new Reaction(() => {
+        const r1 = reaction(() => {
             trackUpdate(r1);
             out = c1.get() * 2;
         });
@@ -394,10 +437,10 @@ describe('Reaction tests', () => {
 
     test('run reaction with conditional dependence', () => {
         let out ;
-        const cond = new Observable(true);
-        const o1 = new Observable('hello');
-        const o2 = new Observable('bye');
-        const r1 = new Reaction(() => {
+        const cond = observable(true);
+        const o1 = observable('hello');
+        const o2 = observable('bye');
+        const r1 = reaction(() => {
             trackUpdate(r1);
             out = cond.get() ? o1.get() : o2.get();
         });
@@ -434,19 +477,19 @@ describe('Reaction tests', () => {
 
     test('run reaction with conditional computed dependence', () => {
         let out ;
-        const cond0 = new Observable(false);
-        const cond1 = new Computed(() => {
+        const cond0 = observable(false);
+        const cond1 = computed(() => {
             return !cond0.get();
         })
-        const o1 = new Observable('hello');
-        const o2 = new Observable('bye');
-        const c1 = new Computed(() => {
+        const o1 = observable('hello');
+        const o2 = observable('bye');
+        const c1 = computed(() => {
             return o1.get() + '!';
         })
-        const c2 = new Computed(() => {
+        const c2 = computed(() => {
             return o2.get() + '!';
         })
-        const r1 = new Reaction(() => {
+        const r1 = reaction(() => {
             trackUpdate(r1);
             // console.log('running reaction')
             out = cond1.get() ? c1.get() : c2.get();
@@ -490,8 +533,8 @@ describe('Reaction tests', () => {
 
     describe('reactions run in infinite loop if modify dependant observables', () => {
         test('case 1 (no subsequent subscription in reaction after set()', () => {
-            const o1 = new Observable(0);
-            const r1 = new Reaction(() => {
+            const o1 = observable(0);
+            const r1 = reaction(() => {
                 if (o1.get() < 50000) {
                     o1.set(o1.get() + 1);
                 }
@@ -502,8 +545,8 @@ describe('Reaction tests', () => {
         });
 
         test('case 2 (subsequent subscription in reaction after set()', () => {
-            const o1 = new Observable(0);
-            const r1 = new Reaction(() => {
+            const o1 = observable(0);
+            const r1 = reaction(() => {
                 if (o1.get() < 50000) {
                     o1.set(o1.get() + 1);
 
@@ -516,9 +559,9 @@ describe('Reaction tests', () => {
         });
 
         test('case 3 (computed, no subsequent subscription in reaction after set()', () => {
-            const o1 = new Observable(0);
-            const c1 = new Computed(() => o1.get() + 1);
-            const r1 = new Reaction(() => {
+            const o1 = observable(0);
+            const c1 = computed(() => o1.get() + 1);
+            const r1 = reaction(() => {
                 if (c1.get() < 50000) {
                     o1.set(o1.get() + 1);
                 }
@@ -530,9 +573,9 @@ describe('Reaction tests', () => {
         });
 
         test('case 4 (computed, subsequent subscription in reaction after set()', () => {
-            const o1 = new Observable(0);
-            const c1 = new Computed(() => o1.get() + 1);
-            const r1 = new Reaction(() => {
+            const o1 = observable(0);
+            const c1 = computed(() => o1.get() + 1);
+            const r1 = reaction(() => {
                 if (c1.get() < 50000) {
                     o1.set(o1.get() + 1);
 
@@ -547,12 +590,12 @@ describe('Reaction tests', () => {
     });
 
     test('should recover after exception', () => {
-        const o1 = new Observable(0);
-        const o2 = new Observable(123);
-        const c1 = new Computed(() => o1.get() + 1);
+        const o1 = observable(0);
+        const o2 = observable(123);
+        const c1 = computed(() => o1.get() + 1);
 
         let result;
-        const r1 = new Reaction(() => {
+        const r1 = reaction(() => {
             if (c1.get() < 2) {
                 throw new Error('Bad!');
             }
@@ -579,8 +622,8 @@ describe('Reaction tests', () => {
 
     test('should not run after destroy', () => {
         let res;
-        const o1 = new Observable(0);
-        const r1 = new Reaction(() => {
+        const o1 = observable(0);
+        const r1 = reaction(() => {
             res = o1.get();
         });
         r1.run();
@@ -595,9 +638,9 @@ describe('Reaction tests', () => {
 
     test('should throw and be usable after it', () => {
         let res;
-        const o1 = new Observable(1);
-        const o2 = new Observable(2);
-        const r = new Reaction(() => {
+        const o1 = observable(1);
+        const o2 = observable(2);
+        const r = reaction(() => {
             if (o1.get() < 2) {
                 throw new Error('too little');
             } else {
@@ -610,14 +653,28 @@ describe('Reaction tests', () => {
         expect(res).toBe(2 + 2);
         expect(() => o2.set(3)).not.toThrow();
         expect(res).toBe(2 + 3);
-    })
-})
+    });
+
+    test('reaction manager runs instead of body if specified', () => {
+        const o = observable(0);
+        const manager =  jest.fn();
+        let c = 0;
+        const r = reaction(() => { c++; o.get() }, null, manager);
+        r.run();
+        expect(manager).not.toBeCalled();
+        expect(c).toBe(1);
+        o.set(1);
+        // check if maanger was called instead of body
+        expect(manager).toBeCalled();
+        expect(c).toBe(1);
+    });
+});
 
 describe('Transactions tests', () => {
     test('basic', () => {
         let out;
-        const o1 = new Observable(0);
-        const r1 = new Reaction(() => {
+        const o1 = observable(0);
+        const r1 = reaction(() => {
             out = o1.get();
         }).run();
 
@@ -632,9 +689,9 @@ describe('Transactions tests', () => {
 
     test('two mutations', () => {
         let out;
-        const o1 = new Observable(1);
-        const o2 = new Observable(2);
-        const r1 = new Reaction(() => {
+        const o1 = observable(1);
+        const o2 = observable(2);
+        const r1 = reaction(() => {
             trackUpdate(r1);
             out = o1.get() + o2.get();
         })
@@ -655,17 +712,17 @@ describe('Transactions tests', () => {
 
     test('get computed value inside a tx', () => {
         let out;
-        const o1 = new Observable(true);
-        const o2 = new Observable(3);
-        const o3 = new Observable(4);
-        const o4 = new Observable(10);
+        const o1 = observable(true);
+        const o2 = observable(3);
+        const o3 = observable(4);
+        const o4 = observable(10);
 
-        const c1 = new Computed(() => {
+        const c1 = computed(() => {
             trackUpdate(c1);
             return o1.get() ? o2.get() : o3.get();
         });
 
-        const r1 = new Reaction(() => {
+        const r1 = reaction(() => {
             trackUpdate(r1);
             out = c1.get() + o4.get();
         });
@@ -693,4 +750,288 @@ describe('Transactions tests', () => {
         expect(out).toBe(5 + 5);
         expect(trackedUpdates(r1)).toBe(2);
     })
+})
+
+describe('Actions and untracked transactions', () => {
+    test('Action creates usable function', () => {
+        const ac = action(() => {});
+        expect(() => ac()).not.toThrow();
+    });
+
+    test('Action passes params and this to body function', () => {
+        let actionParams;
+        const ac = action((...params) => { actionParams = params });
+        ac(1, 2, 3);
+        expect(actionParams).toEqual([1, 2, 3]);
+
+        let actionThis;
+        const host = {
+            ac: action(function() { actionThis = this })
+        };
+        host.ac();
+        expect(actionThis).toBe(host);
+    });
+
+    test('Actions work like transactions', () => {
+        const o1 = observable(1);
+        const o2 = observable(2);
+        const ac = action(() => {
+            o1.set(o1.get() + 1);
+            o2.set(o2.get() + 1);
+        });
+        const r = reaction(() => {
+            o1.get();
+            o2.get();
+            trackUpdate(r);
+        });
+        r.run();
+        ac();
+        expect(trackedUpdates(r)).toBe(2);
+    });
+
+    test('Actions are untracked', () => {
+        const o1 = observable(1);
+        const o2 = observable(2);
+        const ac = action(() => o1.set(o1.get() + 1));
+        const r = reaction(() => {
+            o2.get();
+            ac();
+            trackUpdate(r);
+        });
+        r.run();
+        expect(trackedUpdates(r)).toBe(1);
+        o2.set(10); // change reaction dep
+        expect(trackedUpdates(r)).toBe(2);
+        o1.set(20); // change observable from action body
+        expect(trackedUpdates(r)).toBe(2);
+    });
+
+    test('Untracked transactions (utx) work like transactions', () => {
+        const o1 = observable(1);
+        const o2 = observable(2);
+        const r = reaction(() => {
+            o1.get();
+            o2.get();
+            trackUpdate(r);
+        });
+        r.run();
+        expect(trackedUpdates(r)).toBe(1);
+        utx(() => {
+            o1.set(o1.get() + 1);
+            o2.set(o2.get() + 1);
+        });
+        expect(trackedUpdates(r)).toBe(2);
+    });
+
+    test('Untracked transactions (utx) are untracked', () => {
+        const o1 = observable(1);
+        const o2 = observable(2);
+        const r = reaction(() => {
+            o2.get();
+            utx(() => o1.set(o1.get() + 1));
+            trackUpdate(r);
+        });
+        r.run();
+        expect(trackedUpdates(r)).toBe(1);
+        o2.set(10); // change reaction dep
+        expect(trackedUpdates(r)).toBe(2);
+        o1.set(20); // change observable from action body
+        expect(trackedUpdates(r)).toBe(2);
+    });
+});
+
+describe('makeObservable and related functions', () => {
+    test("makeObservable dosn't throw for empty object", () => {
+        expect(() => makeObservable({})).not.toThrow();
+        class T {
+            constructor() {
+                makeObservable(this);
+            }
+        }
+        expect(() => new T()).not.toThrow();
+    });
+
+    test("makeObservable converts observable and computed on plain object", () => {
+        const o = makeObservable({
+            a: observable(1),
+            b: computed(() => o.a + 1),
+        });
+        let c;
+        const r = reaction(() => {
+            c = o.b;
+        })
+        expect(() => r.run()).not.toThrow();
+        expect(c).toBe(2);
+        o.a = 2;
+        expect(c).toBe(3);
+    });
+
+    test('makeObservable converts observable and computed on class objects', () => {
+        class C {
+            a = observable(1);
+            b = computed(() => this.a + 1);
+
+            constructor() {
+                makeObservable(this);
+            }
+        }
+        const o = new C();
+        let c;
+        const r = reaction(() => {
+            c = o.b;
+        })
+        expect(() => r.run()).not.toThrow();
+        expect(c).toBe(2);
+        o.a = 2;
+        expect(c).toBe(3);
+    });
+
+    test('makeObservable only affects own properrties', () => {
+        const o = makeObservable({
+            a: observable(1),
+            __proto__: {
+                b: observable(2),
+            },
+        });
+        expect(o.a).toBe(1);
+        expect(o.b).toBeInstanceOf(Observable); // o.b is on proto, so don't get converted
+    });
+
+    test("makeObservable doesn't add setter for computed", () => {
+        const o = makeObservable({
+            a: observable(1),
+            b: computed(() => o.a + 1),
+        });
+        expect(() => o.b = 20).not.toThrow();
+        // check o.b is still a computed
+        expect(o.b).toBe(2);
+        o.a = 5;
+        expect(o.b).toBe(6);
+    });
+
+    test("makeObservable doesn't change behaviour if applied twice (objects)", () => {
+        const o = makeObservable(
+            makeObservable({
+                a: observable(1),
+                b: computed(() => o.a + 1),
+            })
+        );
+
+        let c;
+        const r = reaction(() => {
+            c = o.b;
+        })
+        expect(() => r.run()).not.toThrow();
+        expect(c).toBe(2);
+        o.a = 2;
+        expect(c).toBe(3);
+    });
+
+    test("makeObservable doesn't change behaviour if applied twice (classes inheritance)", () => {
+        class A {
+            a = observable(1);
+            b = computed(() => this.a + 1);
+
+            constructor() {
+                makeObservable(this);
+            }
+        }
+        class B extends A {
+            c = computed(() => this.a + this.b);
+
+            constructor() {
+                super()
+                makeObservable(this);
+            }
+        }
+        const o = new B();
+        let c;
+        const r = reaction(() => {
+            c = o.c;
+        })
+        expect(() => r.run()).not.toThrow();
+        expect(c).toBe(3);
+        o.a = 2;
+        expect(c).toBe(5);
+    });
+
+    test("makeObservable doesn't execute getters", () => {
+        let count = 0;
+        const o = makeObservable({
+            get a() {
+                return count += 1;
+            }
+        });
+        expect(count).toBe(0);
+    });
+
+    test("notify doesn't throw on empty thunk fn", () => {
+        expect(() => notify(() => {})).not.toThrow();
+    });
+
+    test('notify calls .notify() on observables accessed in thunk fn', () => {
+        const o = makeObservable({
+            a: observable(1),
+            b: observable(2),
+        });
+        const c = computed(() => { trackUpdate(c); return o.a + 1 });
+        const d = computed(() => { trackUpdate(d); return o.b + 1 });
+        expect(c.get()).toBe(2);
+        expect(trackedUpdates(c)).toBe(1);
+        expect(d.get()).toBe(3);
+        expect(trackedUpdates(d)).toBe(1);
+        // repeat
+        expect(c.get()).toBe(2);
+        expect(trackedUpdates(c)).toBe(1);
+        expect(d.get()).toBe(3);
+        expect(trackedUpdates(d)).toBe(1);
+        // notify both
+        notify(() => (o.a, o.b));
+        // check
+        expect(c.get()).toBe(2);
+        expect(trackedUpdates(c)).toBe(2);
+        expect(d.get()).toBe(3);
+        expect(trackedUpdates(d)).toBe(2);
+        // notify only a
+        notify(() => o.a);
+        // check
+        expect(c.get()).toBe(2);
+        expect(trackedUpdates(c)).toBe(3);
+        expect(d.get()).toBe(3);
+        expect(trackedUpdates(d)).toBe(2);
+    });
+
+    test('notify throws on computed notify', () => {
+        const o = observable(1);
+        const c = computed(() => o.get() + 1);
+
+        expect(() => notify(() => c.get())).toThrow();
+        expect(() => notify(() => o.get())).not.toThrow();
+    });
+
+    test("fromGetter doesn't throw on empty thunk fn", () => {
+        expect(() => fromGetter(() => {})).not.toThrow();
+        expect(fromGetter(() => {})).toBe(undefined);
+    });
+
+    test('fromGetter returns observable or computed instance accessed on thunk fn', () => {
+        const o = observable(1);
+        const c = computed(() => o.get() + 1);
+        expect(fromGetter(() => o.get())).toBe(o);
+        expect(fromGetter(() => c.get())).toBe(c);
+    });
+
+    test('fromGetter returns observable or computed instance accessed on thunk fn (makeObservable)', () => {
+        const o = observable(1);
+        const c = computed(() => o.get() + 1);
+        const oo = makeObservable({ o, c });
+        expect(fromGetter(() => oo.o)).toBe(o);
+        expect(fromGetter(() => oo.c)).toBe(c);
+    });
+
+    test('fromGetter returns latest accessed observable in thunk fn', () => {
+        const o1 = observable(1);
+        const o2 = observable(2);
+        expect(fromGetter(() => (o1.get(), o2.get()))).toBe(o2);
+    });
 })
