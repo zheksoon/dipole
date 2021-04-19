@@ -51,7 +51,7 @@ declare module "dipole" {
     
     export function utx<T>(fn: () => T): T;
 
-    export function fromGetter<T>(gettersThunk: () => T): IGettable<T> | undefined;
+    export function fromGetter(gettersThunk: () => void): Observable<unknown> | Computed<unknown> | undefined;
 
     export function notify(gettersThunk: () => unknown): void;
 
