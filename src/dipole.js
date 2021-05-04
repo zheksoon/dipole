@@ -14,7 +14,7 @@ const states = {
     COMPUTING: 3,
 };
 
-// Helper functions
+// Work queues functions
 
 function scheduleReaction(reaction) {
     gScheduledReactions.push(reaction);
@@ -41,10 +41,10 @@ function runScheduledSubscribersChecks() {
 // Common methods
 
 function removeSubscriptions(self) {
-    let subscription;
-    while ((subscription = self._subscriptions.pop())) {
-        subscription._unsubscribe(self);
-    }
+    self._subscriptions.forEach((subscription) => {
+        subscription._removeSubscriber(self);
+    });
+    self._subscriptions = [];
 }
 
 function trackComputedContext(self) {
@@ -68,13 +68,10 @@ function trackComputedContext(self) {
 }
 
 function notifyAndRemoveSubscribers(self) {
-    const subscribers = self._subscribers;
-
-    subscribers.forEach((subscriber) => {
+    self._subscribers.forEach((subscriber) => {
         subscriber._notify();
     });
-
-    subscribers.clear();
+    self._subscribers.clear();
 }
 
 // Transaction (TX)
@@ -183,8 +180,10 @@ class Observable {
         }
     }
 
-    _unsubscribe(subscriber) {
-        if (this._state === states.NOTIFYING) return;
+    _removeSubscriber(subscriber) {
+        if (this._state === states.NOTIFYING) {
+            return; // do not react to unsubscribes when in NOTIFYING state
+        }
 
         this._subscribers.delete(subscriber);
     }
@@ -194,9 +193,9 @@ class Computed {
     constructor(computer) {
         this._subscribers = new Set();
         this._value = undefined;
-        this._subscriptions = [];
         this._computer = computer;
         this._state = states.DIRTY;
+        this._subscriptions = [];
     }
 
     get() {
@@ -242,7 +241,7 @@ class Computed {
         this._subscriptions.push(notifier);
     }
 
-    _unsubscribe(subscriber) {
+    _removeSubscriber(subscriber) {
         if (this._state === states.NOTIFYING) {
             return; // do not react to unsubscribes when in NOTIFYING state
         }
@@ -273,11 +272,11 @@ class Computed {
 
 class Reaction {
     constructor(reaction, context, manager) {
-        this._subscriptions = [];
-        this._state = states.DIRTY;
         this._reaction = reaction;
         this._context = context || null;
         this._manager = manager;
+        this._state = states.DIRTY;
+        this._subscriptions = [];
     }
 
     _notify() {
