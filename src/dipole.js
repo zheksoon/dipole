@@ -12,7 +12,7 @@ const states = {
     DIRTY: 1,
     NOTIFYING: 2,
     COMPUTING: 3,
-}
+};
 
 // Helper functions
 
@@ -22,7 +22,7 @@ function scheduleReaction(reaction) {
 
 function runScheduledReactions() {
     let reaction;
-    while (reaction = gScheduledReactions.pop()) {
+    while ((reaction = gScheduledReactions.pop())) {
         reaction.runManager();
     }
 }
@@ -33,7 +33,7 @@ function scheduleSubscribersCheck(notifier) {
 
 function runScheduledSubscribersChecks() {
     let notifier;
-    while (notifier = gScheduledSubscribersChecks.pop()) {
+    while ((notifier = gScheduledSubscribersChecks.pop())) {
         notifier._checkSubscribers();
     }
 }
@@ -42,7 +42,7 @@ function runScheduledSubscribersChecks() {
 
 function removeSubscriptions(self) {
     let subscription;
-    while (subscription = self._subscriptions.pop()) {
+    while ((subscription = self._subscriptions.pop())) {
         subscription._unsubscribe(self);
     }
 }
@@ -69,11 +69,11 @@ function trackComputedContext(self) {
 
 function notifyAndRemoveSubscribers(self) {
     const subscribers = self._subscribers;
-    
-    subscribers.forEach(subscriber => {
+
+    subscribers.forEach((subscriber) => {
         subscriber._notify();
     });
-    
+
     subscribers.clear();
 }
 
@@ -82,8 +82,7 @@ function tx(thunk) {
     ++gTransactionDepth;
     try {
         thunk();
-    }
-    finally {
+    } finally {
         if (--gTransactionDepth === 0) {
             endTransaction();
         }
@@ -98,8 +97,7 @@ function utx(fn) {
     ++gTransactionDepth;
     try {
         return fn();
-    }
-    finally {
+    } finally {
         if (--gTransactionDepth === 0) {
             endTransaction();
         }
@@ -109,22 +107,21 @@ function utx(fn) {
 
 function action(fn) {
     // Do not DRY with `utx()` because of extra work for applying `this` and `arguments` to `fn`
-    return function() {
+    return function () {
         // actions should not introduce new dependencies when obsesrvables are observed
         const oldComputedContext = gComputedContext;
         gComputedContext = null;
 
         ++gTransactionDepth;
         try {
-            return fn.apply(this, arguments)
-        }
-        finally {
+            return fn.apply(this, arguments);
+        } finally {
             if (--gTransactionDepth === 0) {
                 endTransaction();
             }
             gComputedContext = oldComputedContext;
         }
-    }
+    };
 }
 
 function fromGetter(gettersThunk) {
@@ -173,7 +170,7 @@ class Observable {
 
         this._value = value;
 
-        this.notify()
+        this.notify();
     }
 
     notify() {
@@ -181,11 +178,11 @@ class Observable {
         notifyAndRemoveSubscribers(this);
         this._state = states.CLEAN;
 
-        if (gTransactionDepth === 0)  {
+        if (gTransactionDepth === 0) {
             endTransaction();
         }
     }
- 
+
     _unsubscribe(subscriber) {
         if (this._state === states.NOTIFYING) return;
 
@@ -214,7 +211,7 @@ class Computed {
 
         if (this._state === states.CLEAN) {
             return this._value;
-        }        
+        }
 
         return this._recomputeValue();
     }
@@ -233,12 +230,10 @@ class Computed {
             this._value = this._computer();
             this._state = states.CLEAN;
             return this._value;
-        }
-        catch (e) {
+        } catch (e) {
             this._state = states.DIRTY;
             throw e;
-        }
-        finally {
+        } finally {
             gComputedContext = oldComputedContext;
         }
     }
@@ -253,7 +248,7 @@ class Computed {
         }
 
         this._subscribers.delete(subscriber);
-        
+
         if (this._subscribers.size === 0) {
             scheduleSubscribersCheck(this);
         }
@@ -300,9 +295,9 @@ class Reaction {
         if (this._manager) {
             removeSubscriptions(this);
             return this._manager();
-         } else {
+        } else {
             return this.run();
-         }
+        }
     }
 
     run() {
@@ -310,14 +305,13 @@ class Reaction {
 
         const oldComputedContext = gComputedContext;
         gComputedContext = this;
-        
+
         ++gTransactionDepth;
 
         try {
             this._state = states.CLEAN;
             return this._reaction.apply(this._context, arguments);
-        }
-        finally {
+        } finally {
             gComputedContext = oldComputedContext;
             // if we are about to end all transactions, run the rest of reactions inside it
             if (gTransactionDepth === 1) {
@@ -335,15 +329,15 @@ class Reaction {
 }
 
 function observable(value) {
-    return new Observable(value)
+    return new Observable(value);
 }
 
 function computed(computer) {
-    return new Computed(computer)
+    return new Computed(computer);
 }
 
 function reaction(reactor, context, manager) {
-    return new Reaction(reactor, context, manager)
+    return new Reaction(reactor, context, manager);
 }
 
 // declare shorthands for observable props
@@ -363,4 +357,4 @@ export {
     action,
     fromGetter,
     notify,
-}
+};

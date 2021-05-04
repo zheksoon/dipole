@@ -23,7 +23,8 @@
   },
   "devDependencies": {
     "jest": "^26.6.3",
-    "microbundle": "^0.13.0"
+    "microbundle": "^0.13.0",
+    "prettier": "^2.2.1"
   },
   "scripts": {
     "test": "jest",
@@ -51,6 +52,13 @@
         "Reaction"
       ]
     }
+  },
+  "prettier": {
+    "printWidth": 100,
+    "trailingComma": "es5",
+    "tabWidth": 4,
+    "semi": true,
+    "singleQuote": false
   },
   "author": "Eugene Daragan",
   "license": "MIT"
