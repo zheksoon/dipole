@@ -47,6 +47,13 @@ function removeSubscriptions(self) {
     self._subscriptions = [];
 }
 
+function notifyAndRemoveSubscribers(self) {
+    self._subscribers.forEach((subscriber) => {
+        subscriber._notify();
+    });
+    self._subscribers.clear();
+}
+
 function trackComputedContext(self) {
     // return false if we are in special context
     if (gComputedContext !== null) {
@@ -65,13 +72,6 @@ function trackComputedContext(self) {
         }
     }
     return true;
-}
-
-function notifyAndRemoveSubscribers(self) {
-    self._subscribers.forEach((subscriber) => {
-        subscriber._notify();
-    });
-    self._subscribers.clear();
 }
 
 // Transaction (TX)
@@ -121,6 +121,11 @@ function action(fn) {
     };
 }
 
+function endTransaction() {
+    runScheduledReactions();
+    runScheduledSubscribersChecks();
+}
+
 function fromGetter(gettersThunk) {
     const oldComputedContext = gComputedContext;
     gComputedContext = gettersSpyContext;
@@ -141,11 +146,6 @@ function notify(gettersThunk) {
     } finally {
         gComputedContext = oldComputedContext;
     }
-}
-
-function endTransaction() {
-    runScheduledReactions();
-    runScheduledSubscribersChecks();
 }
 
 class Observable {

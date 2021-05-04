@@ -95,7 +95,7 @@ class CounterListModel {
   addCounter = action(() => {
     const counter = new CounterModel();
     this.counters.push(counter);
-    // as observables are dump containers for data,
+    // as observables are dumb containers for data,
     // we need to let them know about changes in underlying data structures
     this.counters = this.counters; // or notify(() => this.counters)
   });
