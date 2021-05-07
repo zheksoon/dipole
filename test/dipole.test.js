@@ -668,6 +668,85 @@ describe('Reaction tests', () => {
         expect(manager).toBeCalled();
         expect(c).toBe(1);
     });
+
+    describe("nested reactions", () => {
+        test("nested reaction is destroyed when parent is destroyed", () => {
+            const o1 = observable(1);
+            const o2 = observable(2);
+            let r2;
+            const r1 = reaction(() => {
+                o1.get();
+                trackUpdate(r1);
+                r2 = reaction(() => {
+                    o2.get();
+                    trackUpdate(r2);
+                });
+                r2.run();
+            });
+            r1.run();
+
+            expect(trackedUpdates(r1)).toBe(1);
+            expect(trackedUpdates(r2)).toBe(1);
+
+            o2.set(4);
+            expect(trackedUpdates(r1)).toBe(1);
+            expect(trackedUpdates(r2)).toBe(2);
+
+            r1.destroy();
+
+            // nested reaction doesn't react to dependency updates, so destroyed
+            o2.set(5);
+            expect(trackedUpdates(r2)).toBe(2);
+
+            // parent reaction is destroyed as well
+            o1.set(2);
+            expect(trackedUpdates(r1)).toBe(1);
+        });
+
+        test("nested reaction is destroyed when parent runs", () => {
+            const o1 = observable(1);
+            const o2 = observable(2);
+            let r2;
+            const r1 = reaction(() => {
+                o1.get();
+                trackUpdate(r1);
+                // create nested reaction only for the first time
+                if (!r2) {
+                    r2 = reaction(() => {
+                        o2.get();
+                        trackUpdate(r2);
+                    });
+                    r2.run();
+                }
+            });
+            r1.run();
+
+            expect(trackedUpdates(r1)).toBe(1);
+            expect(trackedUpdates(r2)).toBe(1);
+
+            // nested reaction reacts
+            o2.notify();
+            expect(trackedUpdates(r2)).toBe(2);
+
+            // notify parent
+            o1.notify();
+            expect(trackedUpdates(r1)).toBe(2);
+
+            // doesn't react anymore
+            o2.notify();
+            expect(trackedUpdates(r2)).toBe(2);
+        });
+
+        test("computed context is not perceived as parent", () => {
+            const c = computed(() => reaction(() => {}));
+
+            expect(() => c.get()).not.toThrow();
+
+            const r = c.get();
+
+            expect(() => r.run()).not.toThrow();
+        });
+    });
 });
 
 describe('Transactions tests', () => {
