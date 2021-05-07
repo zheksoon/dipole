@@ -277,6 +277,20 @@ class Reaction {
         this._manager = manager;
         this._state = states.DIRTY;
         this._subscriptions = [];
+        this._children = [];
+
+        if (gComputedContext !== null && gComputedContext instanceof Reaction) {
+            gComputedContext._addChild(this);
+        }
+    }
+
+    _addChild(child) {
+        this._children.push(child);
+    }
+
+    _destroyChildren() {
+        this._children.forEach((child) => child.destroy());
+        this._children = [];
     }
 
     _notify() {
@@ -300,6 +314,7 @@ class Reaction {
     }
 
     run() {
+        this._destroyChildren();
         removeSubscriptions(this);
 
         const oldComputedContext = gComputedContext;
@@ -321,6 +336,7 @@ class Reaction {
     }
 
     destroy() {
+        this._destroyChildren();
         removeSubscriptions(this);
         this._state = states.DIRTY;
         runScheduledSubscribersChecks();
