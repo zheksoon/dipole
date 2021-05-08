@@ -33,9 +33,10 @@ export function makeObservable(obj) {
             }
         }
     }
-    for (let i = 0; i < descriptors.length; i++) {
-        const descriptor = descriptors[i];
+
+    descriptors.forEach((descriptor) => {
         Object.defineProperty(obj, descriptor.key, descriptor);
-    }
+    });
+
     return obj;
 }

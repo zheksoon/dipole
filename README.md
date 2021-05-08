@@ -327,20 +327,18 @@ class UserModel {
 `utx` function also returns the result of its body execution, so it could be used for peeking at some observables/computed values without getting them tracked by underlying reaction/computed:
 
 ```js
-const food = observable('meato')
-const pet = observable('doge')
+const person = observable('Alice')
 
-const soMuch = reaction(() => {
-    const thatFood = utx(() => food.get());
-    console.log(`Feeding ${pet.get()} with ${thatFood}`);
+const government = reaction(() => {
+    const who = utx(() => person.get());
+    console.log(`${who} is caught!`);
 })
-soMuch.run();       // Feeding doge with meato, yummy!
+government.run();       // Alice is caught! but...
 
-food.set('potato')  // nothing happens, food is untracked
-pet.set('dino')     // whoops!
+person.set('Anonymous') // you get it! :)
 ```
 
-Reactions could be destroyed, so they will not run after that:
+Reactions can be destroyed, so they will not run after that:
 
 ```js
 r.destroy()
@@ -385,6 +383,43 @@ Please avoid changing reaction's dependencies inside reaction body - this will c
 const forever = reaction(() => counter.set(counter.get() + 1))
 forever.run()   // never ends
 ```
+
+### Reaction utilities
+
+There are two utility functions that can help is some cases:
+
+* `when()` accepts a condition function and body, so body gets executed in untracked transaction each time condition is true:
+
+```js
+const cond = observable(false);
+
+const r = when(
+    () => cond.get(),
+    () => { console.log("Condition is true") }
+);
+
+cond.set(true);  // prints "Condition is true"
+cond.set(false); // doesn't print
+```
+
+* `once()` works the same as `when()` except the fact it runs only once when condition is set to `true`:
+
+```js
+const cond = observable(false);
+
+const r = once(
+    () => cond.get(),
+    () => { console.log("Condition is true") }
+);
+
+cond.set(true);  // prints "Condition is true"
+cond.set(false); // doesn't print
+cond.set(true);  // doesn't print too
+```
+
+In all cases, `when()` and `once()` will run body if condition is initially set to `true`.
+
+Returned object is `Reaction` instance, so it could be destroyed or ran again as usual reaction.
 
 ## API
 

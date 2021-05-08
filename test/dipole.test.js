@@ -11,6 +11,8 @@ const {
     makeObservable,
     notify,
     fromGetter,
+    when,
+    once,
 } = require("../dist/index.js");
 
 let trackedUpdatesCounter = new WeakMap();
@@ -797,6 +799,103 @@ describe("Reaction tests", () => {
             // child don't get destroyed when parent runs
             o2.notify();
             expect(trackedUpdates(r2)).toBe(2);
+        });
+    });
+
+    describe("utility tests", () => {
+        test("when() runs reaction each time condition is true", () => {
+            const t = {};
+            const o1 = observable(false);
+
+            const r = when(
+                () => o1.get(),
+                () => trackUpdate(t)
+            );
+
+            expect(trackedUpdates(t)).toBe(0);
+
+            o1.set(true);
+            expect(trackedUpdates(t)).toBe(1);
+
+            o1.set(false);
+            expect(trackedUpdates(t)).toBe(1);
+
+            o1.set(true);
+            expect(trackedUpdates(t)).toBe(2);
+
+            // doesn't react after destroy
+            r.destroy();
+            o1.set(true);
+            expect(trackedUpdates(t)).toBe(2);
+        });
+
+        test("when() runs reaction after creation if condition is true", () => {
+            const t = {};
+            const o1 = observable(true);
+
+            const r = when(
+                () => o1.get(),
+                () => trackUpdate(t)
+            );
+
+            expect(trackedUpdates(t)).toBe(1);
+
+            o1.set(true);
+            expect(trackedUpdates(t)).toBe(2);
+        });
+
+        test("once() runs reaction once if condition is true", () => {
+            const t = {};
+            const o1 = observable(false);
+
+            const r = once(
+                () => o1.get(),
+                () => trackUpdate(t)
+            );
+
+            expect(trackedUpdates(t)).toBe(0);
+
+            o1.set(true);
+            expect(trackedUpdates(t)).toBe(1);
+
+            o1.set(false);
+            expect(trackedUpdates(t)).toBe(1);
+
+            // doesn't run anymore
+            o1.set(true);
+            expect(trackedUpdates(t)).toBe(1);
+        });
+
+        test("once() runs reaction once after creation if condition is true", () => {
+            const t = {};
+            const o1 = observable(true);
+
+            const r = once(
+                () => o1.get(),
+                () => trackUpdate(t)
+            );
+
+            expect(trackedUpdates(t)).toBe(1);
+
+            // doesn't run anymore
+            o1.set(true);
+            expect(trackedUpdates(t)).toBe(1);
+        });
+
+        test("once() doesn't run if destroyed", () => {
+            const t = {};
+            const o1 = observable(false);
+
+            const r = once(
+                () => o1.get(),
+                () => trackUpdate(t)
+            );
+
+            r.destroy();
+
+            // doesn't run anymore
+            o1.set(true);
+            expect(trackedUpdates(t)).toBe(0);
         });
     });
 });
