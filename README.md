@@ -28,7 +28,7 @@ npm install --save dipole
 
 ```jsx
 import { action, observable, makeObservable } from "dipole";
-import { reactive } from "dipole-react";
+import { observer } from "dipole-react";
 
 let counterId = 0;
 
@@ -345,6 +345,22 @@ Reactions could be destroyed, so they will not run after that:
 ```js
 r.destroy()
 a.set(4)    // doesn't react to the change anymore
+```
+
+### Nested reactions
+
+Since dipole version 2.2.0 reactions that get created while another reaction is executed become **children** of the parent reaction. Child reactions get automatically destroyed when parent is destroyed or ran. 
+
+Why is this needed? 
+
+This behaviour enables building hierarchical constructs, where one reaction (say, router) creates another reaction (say, view or page), and changes that trigger router reaction automatically destroy view reaction, so all related resources could be freed.
+
+For more context, see [this issue](https://github.com/zheksoon/dipole/issues/5).
+
+In case you want intentially create a reaction without parent, just do it inside untracked transaction:
+
+```js
+const free = utx(() => reaction(() => { ...reaction body... }));
 ```
 
 Advanced reaction usage with reaction context and manager argument:
