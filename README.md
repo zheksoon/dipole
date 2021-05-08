@@ -347,7 +347,7 @@ a.set(4)    // doesn't react to the change anymore
 
 ### Nested reactions
 
-Since dipole version 2.2.0 reactions that get created while another reaction is executed become **children** of the parent reaction. Child reactions get automatically destroyed when parent is destroyed or ran. 
+Since dipole version 2.2.0 reactions that get created while another reaction is executed become **children** of the parent reaction. Child reactions get automatically destroyed when parent is destroyed or run. 
 
 Why is this needed? 
 
@@ -419,7 +419,7 @@ cond.set(true);  // doesn't print too
 
 In all cases, `when()` and `once()` will run body if condition is initially set to `true`.
 
-Returned object is `Reaction` instance, so it could be destroyed or ran again as usual reaction.
+Returned object is `Reaction` instance, so it could be destroyed or run again as usual reaction.
 
 ## API
 
