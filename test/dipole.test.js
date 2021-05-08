@@ -767,6 +767,37 @@ describe("Reaction tests", () => {
 
             expect(() => r.run()).not.toThrow();
         });
+
+        test("reaction doesn't get parent when created inside utx", () => {
+            const o1 = observable(1);
+            const o2 = observable(2);
+            let r2;
+            const r1 = reaction(() => {
+                o1.get();
+                trackUpdate(r1);
+                if (!r2) {
+                    r2 = utx(() =>
+                        reaction(() => {
+                            o2.get();
+                            trackUpdate(r2);
+                        })
+                    );
+                    r2.run();
+                }
+            });
+            r1.run();
+
+            expect(trackedUpdates(r1)).toBe(1);
+            expect(trackedUpdates(r2)).toBe(1);
+
+            // run parent
+            o1.notify();
+            expect(trackedUpdates(r1)).toBe(2);
+
+            // child don't get destroyed when parent runs
+            o2.notify();
+            expect(trackedUpdates(r2)).toBe(2);
+        });
     });
 });
 

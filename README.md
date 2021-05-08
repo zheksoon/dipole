@@ -363,6 +363,8 @@ In case you want intentially create a reaction without parent, just do it inside
 const free = utx(() => reaction(() => { ...reaction body... }));
 ```
 
+### Advanced usage
+
 Advanced reaction usage with reaction context and manager argument:
 
 ```js
@@ -375,7 +377,9 @@ delayed.run()   // prints '3'
 counter.set(4)  // prints '4' after 1 second
 ```
 
-Limitation: please avoid changing reaction's dependencies inside reaction body - this will cause reaction running in an infinite loop:
+### Limitations
+
+Please avoid changing reaction's dependencies inside reaction body - this will cause reaction running in an infinite loop:
 
 ```js
 const forever = reaction(() => counter.set(counter.get() + 1))
