@@ -27,14 +27,14 @@ function runScheduledReactions() {
     }
 }
 
-function scheduleSubscribersCheck(notifier) {
-    gScheduledSubscribersChecks.push(notifier);
+function scheduleSubscribersCheck(computed) {
+    gScheduledSubscribersChecks.push(computed);
 }
 
 function runScheduledSubscribersChecks() {
-    let notifier;
-    while ((notifier = gScheduledSubscribersChecks.pop())) {
-        notifier._checkSubscribers();
+    let computed;
+    while ((computed = gScheduledSubscribersChecks.pop())) {
+        computed._checkSubscribers();
     }
 }
 
@@ -237,8 +237,8 @@ class Computed {
         }
     }
 
-    _subscribeTo(notifier) {
-        this._subscriptions.push(notifier);
+    _subscribeTo(subscription) {
+        this._subscriptions.push(subscription);
     }
 
     _removeSubscriber(subscriber) {
@@ -300,8 +300,8 @@ class Reaction {
         }
     }
 
-    _subscribeTo(notifier) {
-        this._subscriptions.push(notifier);
+    _subscribeTo(subscription) {
+        this._subscriptions.push(subscription);
     }
 
     runManager() {
