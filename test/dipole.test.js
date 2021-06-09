@@ -1275,3 +1275,30 @@ describe("makeObservable and related functions", () => {
         expect(fromGetter(() => (o1.get(), o2.get()))).toBe(o2);
     });
 });
+
+describe("Background subscribers check", () => {
+    test("it unsubscribers computed from subscriptions when there is no subscribers", async () => {
+        const o = observable(1);
+        const c = computed(() => o.get() * 2);
+
+        const flag = observable(true);
+        const r = reaction(() => {
+            if (flag.get()) {
+                c.get();
+            }
+        });
+        r.run();
+
+        expect(c._subscribers.size).toBe(1);
+        expect(o._subscribers.size).toBe(1);
+
+        flag.set(false);
+        expect(c._subscribers.size).toBe(0);
+        expect(o._subscribers.size).toBe(1); // computed is still subscribed
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        expect(c._subscribers.size).toBe(0);
+        expect(o._subscribers.size).toBe(0); // computed is unsubscribed
+    });
+});
