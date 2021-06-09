@@ -1,6 +1,7 @@
 let gComputedContext = null;
 let gScheduledReactions = [];
-let gScheduledSubscribersChecks = [];
+let gScheduledSubscribersChecks = new Set();
+let gScheduledSubscribersCheckTimeout = null;
 let gTransactionDepth = 0;
 let gGettersSpyResult = undefined;
 
@@ -13,6 +14,7 @@ const states = {
     NOTIFYING: 2,
     COMPUTING: 3,
 };
+const SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL = 1000;
 
 // Work queues functions
 
@@ -28,14 +30,23 @@ function runScheduledReactions() {
 }
 
 function scheduleSubscribersCheck(computed) {
-    gScheduledSubscribersChecks.push(computed);
+    gScheduledSubscribersChecks.add(computed);
+    if (!gScheduledSubscribersCheckTimeout) {
+        gScheduledSubscribersCheckTimeout = setTimeout(
+            runScheduledSubscribersChecks,
+            SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL
+        );
+    }
 }
 
 function runScheduledSubscribersChecks() {
-    let computed;
-    while ((computed = gScheduledSubscribersChecks.pop())) {
+    gScheduledSubscribersChecks.forEach((computed) => {
+        // delete computed first because it might be reintroduced
+        // into the set later in the iteration by `_checkSubscribers` call
+        // it's safe to delete and add items into Set while iterating
+        gScheduledSubscribersChecks.delete(computed);
         computed._checkSubscribers();
-    }
+    });
 }
 
 // Common methods
@@ -123,7 +134,6 @@ function action(fn) {
 
 function endTransaction() {
     runScheduledReactions();
-    runScheduledSubscribersChecks();
 }
 
 function fromGetter(gettersThunk) {
@@ -218,7 +228,6 @@ class Computed {
     destroy() {
         removeSubscriptions(this);
         this._state = states.DIRTY;
-        runScheduledSubscribersChecks();
     }
 
     _recomputeValue() {
@@ -339,7 +348,6 @@ class Reaction {
         this._destroyChildren();
         removeSubscriptions(this);
         this._state = states.DIRTY;
-        runScheduledSubscribersChecks();
     }
 }
 
