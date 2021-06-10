@@ -897,6 +897,23 @@ describe("Reaction tests", () => {
             o1.set(true);
             expect(trackedUpdates(t)).toBe(0);
         });
+
+        test("once() doesn't run in infinite loop if changes its dependencies", () => {
+            const o1 = observable(false);
+            let cnt = 0;
+            const r = once(
+                () => o1.get(),
+                () => {
+                    if (++cnt < 1000) {
+                        trackUpdate(r);
+                        o1.set(true);
+                    }
+                }
+            );
+            expect(trackedUpdates(r)).toBe(0);
+            o1.set(true);
+            expect(trackedUpdates(r)).toBe(1);
+        });
     });
 });
 

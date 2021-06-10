@@ -15,8 +15,8 @@ export function once(conditionFn, body) {
     const r = reaction(() => {
         const cond = conditionFn();
         if (cond) {
-            utx(body);
             r.destroy();
+            utx(body);
         }
     });
     r.run();
