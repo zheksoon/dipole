@@ -21,7 +21,7 @@ declare module "dipole" {
             reaction: (this: Ctx, ...params: Params) => Result,
             context?: Ctx,
             manager?: (this: Reaction<Ctx, Params, Result>) => any
-        )
+        );
         runManager(): any;
         run(...params: Params): Result;
         destroy(): void;
@@ -42,18 +42,22 @@ declare module "dipole" {
         context?: Ctx,
         manager?: (this: Reaction<Ctx, Params, Result>) => any
     ): Reaction<Ctx, Params, Result>;
-    
-    export function action<T extends any[], U>(
-        fn: (...args: T) => U
-    ): (...args: T) => U;
+
+    export function action<T extends any[], U>(fn: (...args: T) => U): (...args: T) => U;
 
     export function tx(thunk: () => unknown): void;
-    
+
     export function utx<T>(fn: () => T): T;
 
-    export function fromGetter(gettersThunk: () => void): Observable<unknown> | Computed<unknown> | undefined;
+    export function fromGetter(
+        gettersThunk: () => unknown
+    ): Observable<unknown> | Computed<unknown> | undefined;
 
     export function notify(gettersThunk: () => unknown): void;
 
-    export function makeObservable<T extends object>(obj: T): T; 
+    export function makeObservable<T extends object>(obj: T): T;
+
+    export function when(condition: () => boolean, body: () => unknown): Reaction<null, [], void>;
+
+    export function once(condition: () => boolean, body: () => unknown): Reaction<null, [], void>;
 }
