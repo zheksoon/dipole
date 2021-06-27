@@ -60,6 +60,31 @@ describe("Observable tests", () => {
         o1.set(10);
         expect(o1.get()).toBe(10);
     });
+
+    describe("checkValue option", () => {
+        test("create observable with checkValue option", () => {
+            const o = observable(0, { checkValue: (a, b) => a == b });
+            expect(o._checkValueFn).not.toBeNull();
+        });
+
+        test("don't trigger subscribers invalidation when check is true", () => {
+            const o1 = observable(0, { checkValue: (a, b) => a == b });
+            const c1 = computed(() => {
+                trackUpdate(c1);
+                return o1.get() * 2;
+            });
+            c1.get();
+            expect(trackedUpdates(c1)).toBe(1);
+            // do update
+            o1.set(1);
+            c1.get();
+            expect(trackedUpdates(c1)).toBe(2);
+            // no update
+            o1.set(1);
+            c1.get();
+            expect(trackedUpdates(c1)).toBe(2);
+        });
+    });
 });
 
 describe("Computed tests", () => {
@@ -371,6 +396,455 @@ describe("Computed tests", () => {
         c.get();
         expect(trackedUpdates(c)).toBe(2);
         expect(o._subscribers.size).toBe(1);
+    });
+
+    describe("checkValue option", () => {
+        const checkValue = (a, b) => a == b;
+
+        test("creates computed with checkValue option", () => {
+            const c1 = computed(() => {}, { checkValue });
+            expect(c1._checkValueFn).not.toBeNull();
+        });
+
+        test("calls reaction when value is changed", () => {
+            const o1 = observable(0);
+            const c1 = computed(
+                () => {
+                    trackUpdate(c1);
+                    return o1.get() * 2;
+                },
+                { checkValue }
+            );
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                c1.get();
+            });
+            r1.run();
+            expect(trackedUpdates(c1)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+            o1.set(1);
+            expect(trackedUpdates(c1)).toBe(2);
+            expect(trackedUpdates(r1)).toBe(2);
+        });
+
+        test("doesn't call reaction when value is not changed", () => {
+            const o1 = observable(0);
+            const c1 = computed(
+                () => {
+                    trackUpdate(c1);
+                    return o1.get() * 2;
+                },
+                { checkValue }
+            );
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                c1.get();
+            });
+            r1.run();
+            expect(trackedUpdates(c1)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+            o1.set(0);
+            expect(trackedUpdates(c1)).toBe(2); // computed is evaluated, but result is the same
+            expect(trackedUpdates(r1)).toBe(1);
+        });
+
+        test("chain o -> c -> v -> r", () => {
+            const o1 = observable(0);
+            const c1 = computed(() => {
+                trackUpdate(c1);
+                return o1.get() * 2;
+            });
+
+            const c2 = computed(
+                () => {
+                    trackUpdate(c2);
+                    return c1.get() * 2;
+                },
+                { checkValue }
+            );
+
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                c2.get();
+            });
+            r1.run();
+
+            expect(trackedUpdates(c1)).toBe(1);
+            expect(trackedUpdates(c2)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(0); // same value
+            expect(trackedUpdates(c1)).toBe(2);
+            expect(trackedUpdates(c2)).toBe(2);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(1); // new value
+            expect(trackedUpdates(c1)).toBe(3);
+            expect(trackedUpdates(c2)).toBe(3);
+            expect(trackedUpdates(r1)).toBe(2);
+
+            o1.set(1); // same value after new value
+            expect(trackedUpdates(c1)).toBe(4);
+            expect(trackedUpdates(c2)).toBe(4);
+            expect(trackedUpdates(r1)).toBe(2);
+        });
+
+        test("chain o -> c -> v -> c -> r", () => {
+            const o1 = observable(0);
+            const c1 = computed(() => {
+                trackUpdate(c1);
+                return o1.get() * 2;
+            });
+
+            const c2 = computed(
+                () => {
+                    trackUpdate(c2);
+                    return c1.get() * 2;
+                },
+                { checkValue }
+            );
+
+            const c3 = computed(() => {
+                trackUpdate(c3);
+                return c2.get() * 2;
+            });
+
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                c3.get();
+            });
+            r1.run();
+
+            expect(trackedUpdates(c1)).toBe(1);
+            expect(trackedUpdates(c2)).toBe(1);
+            expect(trackedUpdates(c3)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(0); // same value
+            expect(trackedUpdates(c1)).toBe(2);
+            expect(trackedUpdates(c2)).toBe(2);
+            expect(trackedUpdates(c3)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(1); // new value
+            expect(trackedUpdates(c1)).toBe(3);
+            expect(trackedUpdates(c2)).toBe(3);
+            expect(trackedUpdates(c3)).toBe(2);
+            expect(trackedUpdates(r1)).toBe(2);
+
+            o1.set(1); // same value after new value
+            expect(trackedUpdates(c1)).toBe(4);
+            expect(trackedUpdates(c2)).toBe(4);
+            expect(trackedUpdates(c3)).toBe(2);
+            expect(trackedUpdates(r1)).toBe(2);
+        });
+
+        test("chain o -> v -> v -> r", () => {
+            const o1 = observable(0);
+            const c1 = computed(
+                () => {
+                    trackUpdate(c1);
+                    return o1.get() * 2;
+                },
+                { checkValue }
+            );
+
+            const c2 = computed(
+                () => {
+                    trackUpdate(c2);
+                    return c1.get() * 2;
+                },
+                { checkValue }
+            );
+
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                c2.get();
+            });
+            r1.run();
+
+            expect(trackedUpdates(c1)).toBe(1);
+            expect(trackedUpdates(c2)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(0);
+
+            expect(trackedUpdates(c1)).toBe(2);
+            expect(trackedUpdates(c2)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(1);
+
+            expect(trackedUpdates(c1)).toBe(3);
+            expect(trackedUpdates(c2)).toBe(2);
+            expect(trackedUpdates(r1)).toBe(2);
+
+            o1.set(1);
+
+            expect(trackedUpdates(c1)).toBe(4);
+            expect(trackedUpdates(c2)).toBe(2);
+            expect(trackedUpdates(r1)).toBe(2);
+        });
+
+        test("chain o -> v -> v -> r (2)", () => {
+            const o1 = observable(0);
+
+            const c1 = computed(
+                () => {
+                    trackUpdate(c1);
+                    return Math.abs(o1.get());
+                },
+                { checkValue }
+            );
+
+            const c2 = computed(
+                () => {
+                    trackUpdate(c2);
+                    return Math.abs(c1.get() - 2);
+                },
+                { checkValue }
+            );
+
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                c2.get();
+            });
+            r1.run();
+
+            expect(c2.get()).toBe(2);
+            expect(trackedUpdates(c1)).toBe(1);
+            expect(trackedUpdates(c2)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(1);
+
+            expect(c2.get()).toBe(1);
+            expect(trackedUpdates(c1)).toBe(2);
+            expect(trackedUpdates(c2)).toBe(2);
+            expect(trackedUpdates(r1)).toBe(2);
+
+            o1.set(-1);
+
+            expect(c2.get()).toBe(1);
+            expect(trackedUpdates(c1)).toBe(3);
+            expect(trackedUpdates(c2)).toBe(2);
+            expect(trackedUpdates(r1)).toBe(2);
+
+            o1.set(3);
+
+            expect(c2.get()).toBe(1);
+            expect(trackedUpdates(c1)).toBe(4);
+            expect(trackedUpdates(c2)).toBe(3);
+            expect(trackedUpdates(r1)).toBe(2);
+
+            o1.set(1);
+
+            expect(c2.get()).toBe(1);
+            expect(trackedUpdates(c1)).toBe(5);
+            expect(trackedUpdates(c2)).toBe(4);
+            expect(trackedUpdates(r1)).toBe(2);
+        });
+
+        test("transaction test 1", () => {
+            const o1 = observable(0);
+            const o2 = observable(1);
+
+            const c1 = computed(
+                () => {
+                    trackUpdate(c1);
+                    return o1.get() + o2.get();
+                },
+                { checkValue }
+            );
+
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                c1.get();
+            });
+
+            r1.run();
+
+            expect(trackedUpdates(r1)).toBe(1);
+            expect(trackedUpdates(c1)).toBe(1);
+
+            tx(() => {
+                o1.set(1);
+                o2.set(2);
+            });
+
+            expect(trackedUpdates(r1)).toBe(2);
+            expect(trackedUpdates(c1)).toBe(2);
+
+            tx(() => {
+                o1.set(5);
+                expect(c1.get()).toBe(5 + 2);
+                expect(trackedUpdates(c1)).toBe(3);
+                o2.set(6);
+            });
+
+            expect(trackedUpdates(c1)).toBe(4);
+            expect(trackedUpdates(r1)).toBe(3);
+
+            // no change to sum
+            tx(() => {
+                o1.set(6);
+                o2.set(5);
+            });
+
+            expect(trackedUpdates(c1)).toBe(5);
+            expect(trackedUpdates(r1)).toBe(3);
+        });
+
+        test("observable branching 1", () => {
+            const o1 = observable(0);
+            const o2 = observable(1);
+
+            const c1 = computed(
+                () => {
+                    trackUpdate(c1);
+                    return o1.get() * 2;
+                },
+                { checkValue }
+            );
+
+            const c2 = computed(() => {
+                trackUpdate(c2);
+                return c1.get() + o2.get();
+            });
+
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                c2.get();
+            });
+            r1.run();
+
+            expect(trackedUpdates(c1)).toBe(1);
+            expect(trackedUpdates(c2)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(0);
+
+            expect(trackedUpdates(c1)).toBe(2);
+            expect(trackedUpdates(c2)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o2.set(2);
+
+            expect(trackedUpdates(c1)).toBe(2);
+            expect(trackedUpdates(c1)).toBe(2);
+            expect(trackedUpdates(c1)).toBe(2);
+
+            o1.set(1);
+
+            expect(trackedUpdates(c1)).toBe(3);
+            expect(trackedUpdates(c2)).toBe(3);
+            expect(trackedUpdates(r1)).toBe(3);
+        });
+
+        test("diamond 1", () => {
+            const o1 = observable(0);
+
+            const c1 = computed(
+                () => {
+                    trackUpdate(c1);
+                    return o1.get() * 2;
+                },
+                { checkValue }
+            );
+
+            const c2 = computed(
+                () => {
+                    trackUpdate(c2);
+                    return o1.get() + 1;
+                },
+                { checkValue }
+            );
+
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                c1.get();
+                c2.get();
+            });
+            r1.run();
+
+            expect(trackedUpdates(c1)).toBe(1);
+            expect(trackedUpdates(c2)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(0);
+
+            expect(trackedUpdates(c1)).toBe(2);
+            expect(trackedUpdates(c2)).toBe(2);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(1);
+
+            expect(trackedUpdates(c1)).toBe(3);
+            expect(trackedUpdates(c2)).toBe(3);
+            expect(trackedUpdates(r1)).toBe(2);
+        });
+
+        test("triangle 1", () => {
+            const o1 = observable(0);
+
+            const c1 = computed(
+                () => {
+                    trackUpdate(c1);
+                    return o1.get() * 2;
+                },
+                { checkValue }
+            );
+
+            const c2 = computed(
+                () => {
+                    trackUpdate(c2);
+                    return o1.get() + c1.get();
+                },
+                { checkValue }
+            );
+
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                c2.get();
+            });
+            r1.run();
+
+            expect(trackedUpdates(c1)).toBe(1);
+            expect(trackedUpdates(c2)).toBe(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(0);
+
+            expect(trackedUpdates(c1)).toBe(2);
+            expect(trackedUpdates(c2)).toBe(2);
+            expect(trackedUpdates(r1)).toBe(1);
+        });
+
+        test("performance (1000 value computed chain)", () => {
+            const o1 = observable(0);
+
+            let startValue = o1;
+            for (let i = 0; i < 1000; i++) {
+                let value = startValue;
+                startValue = computed(() => value.get() + 1, { checkValue });
+            }
+
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                startValue.get();
+            });
+            r1.run();
+            expect(trackedUpdates(r1)).toBe(1);
+            expect(startValue.get()).toBe(1000);
+
+            o1.set(0);
+            expect(trackedUpdates(r1)).toBe(1);
+            expect(startValue.get()).toBe(1000);
+
+            o1.set(1);
+            expect(trackedUpdates(r1)).toBe(2);
+            expect(startValue.get()).toBe(1001);
+        });
     });
 });
 

@@ -1,5 +1,6 @@
 let gComputedContext = null;
 let gScheduledReactions = [];
+let gScheduledStateActualizations = [];
 let gScheduledSubscribersChecks = new Set();
 let gScheduledSubscribersCheckTimeout = null;
 let gTransactionDepth = 0;
@@ -9,10 +10,12 @@ const gettersSpyContext = {};
 const gettersNotifyContext = {};
 
 const states = {
-    CLEAN: 0,
-    DIRTY: 1,
-    NOTIFYING: 2,
-    COMPUTING: 3,
+    NOT_INITIALIZED: 0,
+    NOTIFYING: 1,
+    COMPUTING: 2,
+    CLEAN: 3,
+    MAYBE_DIRTY: 4,
+    DIRTY: 5,
 };
 const SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL = 1000;
 
@@ -49,6 +52,17 @@ function runScheduledSubscribersChecks() {
     });
 }
 
+function scheduleStateActualization(computed) {
+    gScheduledStateActualizations.push(computed);
+}
+
+function runScheduledStateActualizations() {
+    let computed;
+    while ((computed = gScheduledStateActualizations.pop())) {
+        computed._actualizeState();
+    }
+}
+
 // Common methods
 
 function removeSubscriptions(self) {
@@ -58,11 +72,16 @@ function removeSubscriptions(self) {
     self._subscriptions = [];
 }
 
-function notifyAndRemoveSubscribers(self) {
+function notifyAndRemoveSubscribers(self, state) {
+    this._state = states.NOTIFYING;
+
     self._subscribers.forEach((subscriber) => {
-        subscriber._notify();
+        subscriber._notify(state);
     });
-    self._subscribers.clear();
+
+    if (state === states.DIRTY) {
+        self._subscribers.clear();
+    }
 }
 
 function trackComputedContext(self) {
@@ -113,6 +132,16 @@ function utx(fn) {
     }
 }
 
+function untracked(fn) {
+    const oldComputedContext = gComputedContext;
+    gComputedContext = null;
+    try {
+        return fn();
+    } finally {
+        gComputedContext = oldComputedContext;
+    }
+}
+
 function action(fn) {
     // Do not DRY with `utx()` because of extra work for applying `this` and `arguments` to `fn`
     return function () {
@@ -133,6 +162,7 @@ function action(fn) {
 }
 
 function endTransaction() {
+    runScheduledStateActualizations();
     runScheduledReactions();
 }
 
@@ -158,11 +188,26 @@ function notify(gettersThunk) {
     }
 }
 
+function getCheckValueFn(options) {
+    if (options && typeof options === "object") {
+        const checkValueFn = options.checkValue;
+        if (typeof checkValueFn === "function") {
+            return checkValueFn;
+        }
+        // TODO: add shallow-equals dependency
+        // } else if (!!checkValueFn) {
+        //     return shallowEquals;
+        // }
+    }
+    return null;
+}
+
 class Observable {
-    constructor(value) {
+    constructor(value, options) {
         this._subscribers = new Set();
         this._value = value;
         this._state = states.CLEAN;
+        this._checkValueFn = getCheckValueFn(options);
     }
 
     get() {
@@ -175,14 +220,17 @@ class Observable {
             throw new Error("Can't change observable value inside of computed");
         }
 
+        if (this._checkValueFn !== null && this._checkValueFn(this._value, value)) {
+            return;
+        }
+
         this._value = value;
 
         this.notify();
     }
 
     notify() {
-        this._state = states.NOTIFYING;
-        notifyAndRemoveSubscribers(this);
+        notifyAndRemoveSubscribers(this, states.DIRTY);
         this._state = states.CLEAN;
 
         if (gTransactionDepth === 0) {
@@ -197,14 +245,19 @@ class Observable {
 
         this._subscribers.delete(subscriber);
     }
+
+    _actualizeState() {
+        // no op
+    }
 }
 
 class Computed {
-    constructor(computer) {
+    constructor(computer, options) {
         this._subscribers = new Set();
         this._value = undefined;
         this._computer = computer;
-        this._state = states.DIRTY;
+        this._checkValueFn = getCheckValueFn(options);
+        this._state = states.NOT_INITIALIZED;
         this._subscriptions = [];
     }
 
@@ -218,28 +271,69 @@ class Computed {
             return this._value;
         }
 
-        if (this._state === states.CLEAN) {
-            return this._value;
+        if (this._state === states.MAYBE_DIRTY) {
+            this._actualizeState();
         }
 
-        return this._recomputeValue();
+        if (this._state === states.DIRTY || this._state === states.NOT_INITIALIZED) {
+            this._recomputeAndCheckValue();
+        }
+
+        return this._value;
     }
 
     destroy() {
         removeSubscriptions(this);
-        this._state = states.DIRTY;
+        this._state = states.NOT_INITIALIZED;
+    }
+
+    _actualizeState() {
+        if (this._state === states.MAYBE_DIRTY) {
+            const subscriptions = this._subscriptions;
+            for (let i = 0; i < subscriptions.length; i++) {
+                subscriptions[i]._actualizeState();
+                if (this._state === states.DIRTY) {
+                    break;
+                }
+            }
+            // we actualized all subscriptions and nobody notified us, so we are clean
+            if (this._state === states.MAYBE_DIRTY) {
+                this._state = states.CLEAN;
+            }
+        }
+
+        if (this._state === states.DIRTY) {
+            this._recomputeAndCheckValue();
+        }
+    }
+
+    _recomputeAndCheckValue() {
+        if (this._checkValueFn !== null && this._state !== states.NOT_INITIALIZED) {
+            const value = this._recomputeValue();
+            const isSameValue = untracked(() => this._checkValueFn(this._value, value));
+            if (!isSameValue) {
+                this._value = value;
+                // the value has changed - do the delayed notification of all subscribers
+                notifyAndRemoveSubscribers(this, states.DIRTY);
+                this._state = states.CLEAN;
+            }
+        } else {
+            this._value = this._recomputeValue();
+        }
     }
 
     _recomputeValue() {
         const oldComputedContext = gComputedContext;
         gComputedContext = this;
+        const prevState = this._state;
         this._state = states.COMPUTING;
         try {
-            this._value = this._computer();
+            const value = this._computer();
             this._state = states.CLEAN;
-            return this._value;
+            return value;
         } catch (e) {
-            this._state = states.DIRTY;
+            removeSubscriptions(this);
+            this._state = prevState;
             throw e;
         } finally {
             gComputedContext = oldComputedContext;
@@ -262,18 +356,36 @@ class Computed {
         }
     }
 
-    _notify() {
-        if (this._state === states.CLEAN) {
-            this._state = states.NOTIFYING;
-            notifyAndRemoveSubscribers(this);
-            this._state = states.DIRTY;
+    _notify(state) {
+        if (this._state >= state) {
+            return;
+        }
+
+        if (
+            (this._checkValueFn !== null && this._state === states.CLEAN) ||
+            (this._checkValueFn === null && state === states.MAYBE_DIRTY)
+        ) {
+            scheduleStateActualization(this);
+        }
+
+        if (this._checkValueFn !== null) {
+            if (this._state === states.CLEAN) {
+                notifyAndRemoveSubscribers(this, states.MAYBE_DIRTY);
+            }
+        } else {
+            notifyAndRemoveSubscribers(this, state);
+        }
+
+        this._state = state;
+
+        if (state === states.DIRTY) {
             removeSubscriptions(this);
         }
     }
 
     _checkSubscribers() {
         if (this._subscribers.size === 0) {
-            this._state = states.DIRTY;
+            this._state = states.NOT_INITIALIZED;
             removeSubscriptions(this);
         }
     }
@@ -302,8 +414,8 @@ class Reaction {
         this._children = [];
     }
 
-    _notify() {
-        if (this._state === states.CLEAN) {
+    _notify(state) {
+        if (this._state === states.CLEAN && state === states.DIRTY) {
             this._state = states.DIRTY;
             scheduleReaction(this);
         }
@@ -351,12 +463,12 @@ class Reaction {
     }
 }
 
-function observable(value) {
-    return new Observable(value);
+function observable(value, options) {
+    return new Observable(value, options);
 }
 
-function computed(computer) {
-    return new Computed(computer);
+function computed(computer, options) {
+    return new Computed(computer, options);
 }
 
 function reaction(reactor, context, manager) {
