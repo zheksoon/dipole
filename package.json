@@ -1,6 +1,6 @@
 {
   "name": "dipole",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "description": "Dipole - tiny reactive state management that just works",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -22,9 +22,11 @@
     "test": "test"
   },
   "devDependencies": {
-    "jest": "^26.6.3",
-    "microbundle": "^0.13.0",
-    "prettier": "^2.2.1"
+    "eslint": "^7.32.0",
+    "eslint-plugin-import": "^2.25.2",
+    "jest": "^27.3.1",
+    "microbundle": "^0.14.1",
+    "prettier": "^2.4.1"
   },
   "scripts": {
     "test": "jest",
@@ -50,7 +52,10 @@
         "Observable",
         "Computed",
         "Reaction"
-      ]
+      ],
+      "properties": {
+        "regex": "^(gComputedContext|gTransactionDepth)"
+      }
     }
   },
   "prettier": {

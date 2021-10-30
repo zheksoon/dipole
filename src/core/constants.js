@@ -1,0 +1,11 @@
+export const states = {
+    NOT_INITIALIZED: 0,
+    NOTIFYING: 1,
+    COMPUTING: 2,
+    CLEAN: 3,
+    MAYBE_DIRTY: 4,
+    DIRTY: 5,
+    DESTROYED_BY_PARENT: 6,
+};
+
+export const SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL = 1000;

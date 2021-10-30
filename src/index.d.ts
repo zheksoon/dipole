@@ -1,17 +1,25 @@
 declare module "dipole" {
+    export interface IObservableOptions<T> {
+        checkValue?: (prevValue: T, nextValue: T) => boolean;
+    }
+
+    export interface IComputedOptions<T> {
+        checkValue?: (prevValue: T, nextValue: T) => boolean;
+    }
+
     export interface IGettable<T> {
         get(): T;
     }
 
     export class Observable<T> implements IGettable<T> {
-        constructor(value: T);
+        constructor(value: T, options?: IObservableOptions<T>);
         get(): T;
         set(value: T): void;
         notify(): void;
     }
 
     export class Computed<T> implements IGettable<T> {
-        constructor(computer: () => T);
+        constructor(computer: () => T, options?: IComputedOptions<T>);
         get(): T;
         destroy(): void;
     }
@@ -27,14 +35,14 @@ declare module "dipole" {
         destroy(): void;
     }
 
-    export function observable<T>(value: T): Observable<T>;
+    export function observable<T>(value: T, options?: IObservableOptions<T>): Observable<T>;
     namespace observable {
-        export function prop<T>(value: T): T;
+        export function prop<T>(value: T, options?: IObservableOptions<T>): T;
     }
 
-    export function computed<T>(computer: () => T): Computed<T>;
+    export function computed<T>(computer: () => T, options?: IComputedOptions<T>): Computed<T>;
     namespace computed {
-        export function prop<T>(computer: () => T): T;
+        export function prop<T>(computer: () => T, options?: IComputedOptions<T>): T;
     }
 
     export function reaction<Ctx, Params extends any[], Result>(

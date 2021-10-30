@@ -679,6 +679,7 @@ describe("Computed tests", () => {
                 o1.set(5);
                 expect(c1.get()).toBe(5 + 2);
                 expect(trackedUpdates(c1)).toBe(3);
+                expect(trackedUpdates(r1)).toBe(2);
                 o2.set(6);
             });
 
@@ -845,6 +846,23 @@ describe("Computed tests", () => {
             expect(trackedUpdates(r1)).toBe(2);
             expect(startValue.get()).toBe(1001);
         });
+
+        test("unobserved computeds are not recalculating", () => {
+            const o1 = observable(0);
+            const o2 = observable(1);
+
+            const c1 = computed(() => {
+                trackUpdate(c1);
+                return o1.get() + o2.get();
+            }, { checkValue });
+
+            c1.get();
+            expect(trackedUpdates(c1)).toBe(1);
+            expect(c1._subscribers.size).toBe(0);   // unobserved
+
+            o1.set(2);
+            expect(trackedUpdates(c1)).toBe(1);
+        })
     });
 });
 
@@ -1271,6 +1289,43 @@ describe("Reaction tests", () => {
             expect(trackedUpdates(r1)).toBe(2);
 
             // child don't get destroyed when parent runs
+            o2.notify();
+            expect(trackedUpdates(r2)).toBe(2);
+        });
+
+        test("nested reaction is doesn't run when parent runs", () => {
+            const o1 = observable(1);
+            const o2 = observable(2);
+            let r2;
+            const r1 = reaction(() => {
+                o1.get();
+                trackUpdate(r1);
+                // create nested reaction only for the first time
+                if (!r2) {
+                    r2 = reaction(() => {
+                        o1.get();
+                        o2.get();
+                        trackUpdate(r2);
+                    });
+                    r2.run();
+                }
+            });
+            r1.run();
+
+            expect(trackedUpdates(r1)).toBe(1);
+            expect(trackedUpdates(r2)).toBe(1);
+
+            // nested reaction reacts
+            o2.notify();
+            expect(trackedUpdates(r2)).toBe(2);
+
+            // notify parent and child
+            o1.notify();
+            expect(trackedUpdates(r1)).toBe(2);
+            // child didn't run
+            expect(trackedUpdates(r2)).toBe(2);
+
+            // doesn't react anymore
             o2.notify();
             expect(trackedUpdates(r2)).toBe(2);
         });

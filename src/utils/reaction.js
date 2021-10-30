@@ -1,4 +1,5 @@
-import { reaction, utx } from "../dipole";
+import { reaction } from "../core/classes";
+import { utx } from "../core/transaction";
 
 export function when(conditionFn, body) {
     const r = reaction(() => {
