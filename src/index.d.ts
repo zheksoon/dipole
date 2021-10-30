@@ -65,6 +65,16 @@ declare module "dipole" {
 
     export function makeObservable<T extends object>(obj: T): T;
 
+    type ObservableProps<T extends object> = {
+        [K in keyof T]?: Observable<T[K]> | Computed<T[K]>;
+    };
+
+    export function makeObservableProto<T extends object>(
+        obj: T,
+        targetClass: new (...args: any) => T,
+        observables: ObservableProps<T>
+    ): void;
+
     export function when(condition: () => boolean, body: () => unknown): Reaction<null, [], void>;
 
     export function once(condition: () => boolean, body: () => unknown): Reaction<null, [], void>;
