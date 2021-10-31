@@ -1,0 +1,32 @@
+name: Running Code Coverage
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - name: Setup Node.js environment
+      uses: actions/setup-node@v2.4.1
+      with:
+        node-version: 16
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --save-dev
+
+    - name: Build
+      run: npm run build
+
+    - name: Run tests
+      run: npm run test
+  
+    - name: Codecov
+      uses: codecov/codecov-action@v2.1.0
+
