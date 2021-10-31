@@ -30,6 +30,7 @@
   },
   "scripts": {
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "build": "npx microbundle build src/index.js"
   },
   "jest": {

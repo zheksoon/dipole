@@ -25,8 +25,11 @@ jobs:
       run: npm run build
 
     - name: Run tests
-      run: npm run test
+      run: npm run test:coverage
   
     - name: Codecov
       uses: codecov/codecov-action@v2.1.0
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
 
