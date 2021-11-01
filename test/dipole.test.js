@@ -9,6 +9,7 @@ const {
     action,
     utx,
     makeObservable,
+    makeObservableProto,
     notify,
     fromGetter,
     when,
@@ -851,18 +852,21 @@ describe("Computed tests", () => {
             const o1 = observable(0);
             const o2 = observable(1);
 
-            const c1 = computed(() => {
-                trackUpdate(c1);
-                return o1.get() + o2.get();
-            }, { checkValue });
+            const c1 = computed(
+                () => {
+                    trackUpdate(c1);
+                    return o1.get() + o2.get();
+                },
+                { checkValue }
+            );
 
             c1.get();
             expect(trackedUpdates(c1)).toBe(1);
-            expect(c1._subscribers.size).toBe(0);   // unobserved
+            expect(c1._subscribers.size).toBe(0); // unobserved
 
             o1.set(2);
             expect(trackedUpdates(c1)).toBe(1);
-        })
+        });
     });
 });
 
@@ -1621,204 +1625,372 @@ describe("Actions and untracked transactions", () => {
 });
 
 describe("makeObservable and related functions", () => {
-    test("makeObservable dosn't throw for empty object", () => {
-        expect(() => makeObservable({})).not.toThrow();
-        class T {
-            constructor() {
-                makeObservable(this);
+    describe("makeObservable", () => {
+        test("makeObservable dosn't throw for empty object", () => {
+            expect(() => makeObservable({})).not.toThrow();
+            class T {
+                constructor() {
+                    makeObservable(this);
+                }
             }
-        }
-        expect(() => new T()).not.toThrow();
-    });
-
-    test("makeObservable converts observable and computed on plain object", () => {
-        const o = makeObservable({
-            a: observable(1),
-            b: computed(() => o.a + 1),
+            expect(() => new T()).not.toThrow();
         });
-        let c;
-        const r = reaction(() => {
-            c = o.b;
-        });
-        expect(() => r.run()).not.toThrow();
-        expect(c).toBe(2);
-        o.a = 2;
-        expect(c).toBe(3);
-    });
 
-    test("makeObservable converts observable and computed on class objects", () => {
-        class C {
-            a = observable(1);
-            b = computed(() => this.a + 1);
-
-            constructor() {
-                makeObservable(this);
-            }
-        }
-        const o = new C();
-        let c;
-        const r = reaction(() => {
-            c = o.b;
-        });
-        expect(() => r.run()).not.toThrow();
-        expect(c).toBe(2);
-        o.a = 2;
-        expect(c).toBe(3);
-    });
-
-    test("makeObservable only affects own properrties", () => {
-        const o = makeObservable({
-            a: observable(1),
-            __proto__: {
-                b: observable(2),
-            },
-        });
-        expect(o.a).toBe(1);
-        expect(o.b).toBeInstanceOf(Observable); // o.b is on proto, so don't get converted
-    });
-
-    test("makeObservable doesn't add setter for computed", () => {
-        const o = makeObservable({
-            a: observable(1),
-            b: computed(() => o.a + 1),
-        });
-        expect(() => (o.b = 20)).not.toThrow();
-        // check o.b is still a computed
-        expect(o.b).toBe(2);
-        o.a = 5;
-        expect(o.b).toBe(6);
-    });
-
-    test("makeObservable doesn't change behaviour if applied twice (objects)", () => {
-        const o = makeObservable(
-            makeObservable({
+        test("makeObservable converts observable and computed on plain object", () => {
+            const o = makeObservable({
                 a: observable(1),
                 b: computed(() => o.a + 1),
-            })
-        );
-
-        let c;
-        const r = reaction(() => {
-            c = o.b;
+            });
+            let c;
+            const r = reaction(() => {
+                c = o.b;
+            });
+            expect(() => r.run()).not.toThrow();
+            expect(c).toBe(2);
+            o.a = 2;
+            expect(c).toBe(3);
         });
-        expect(() => r.run()).not.toThrow();
-        expect(c).toBe(2);
-        o.a = 2;
-        expect(c).toBe(3);
-    });
 
-    test("makeObservable doesn't change behaviour if applied twice (classes inheritance)", () => {
-        class A {
-            a = observable(1);
-            b = computed(() => this.a + 1);
+        test("makeObservable converts observable and computed on class objects", () => {
+            class C {
+                a = observable(1);
+                b = computed(() => this.a + 1);
 
-            constructor() {
-                makeObservable(this);
+                constructor() {
+                    makeObservable(this);
+                }
             }
-        }
-        class B extends A {
-            c = computed(() => this.a + this.b);
+            const o = new C();
+            let c;
+            const r = reaction(() => {
+                c = o.b;
+            });
+            expect(() => r.run()).not.toThrow();
+            expect(c).toBe(2);
+            o.a = 2;
+            expect(c).toBe(3);
+        });
 
-            constructor() {
-                super();
-                makeObservable(this);
+        test("makeObservable only affects own properrties", () => {
+            const o = makeObservable({
+                a: observable(1),
+                __proto__: {
+                    b: observable(2),
+                },
+            });
+            expect(o.a).toBe(1);
+            expect(o.b).toBeInstanceOf(Observable); // o.b is on proto, so don't get converted
+        });
+
+        test("makeObservable doesn't add setter for computed", () => {
+            const o = makeObservable({
+                a: observable(1),
+                b: computed(() => o.a + 1),
+            });
+            expect(() => (o.b = 20)).not.toThrow();
+            // check o.b is still a computed
+            expect(o.b).toBe(2);
+            o.a = 5;
+            expect(o.b).toBe(6);
+        });
+
+        test("makeObservable doesn't change behaviour if applied twice (objects)", () => {
+            const o = makeObservable(
+                makeObservable({
+                    a: observable(1),
+                    b: computed(() => o.a + 1),
+                })
+            );
+
+            let c;
+            const r = reaction(() => {
+                c = o.b;
+            });
+            expect(() => r.run()).not.toThrow();
+            expect(c).toBe(2);
+            o.a = 2;
+            expect(c).toBe(3);
+        });
+
+        test("makeObservable doesn't change behaviour if applied twice (classes inheritance)", () => {
+            class A {
+                a = observable(1);
+                b = computed(() => this.a + 1);
+
+                constructor() {
+                    makeObservable(this);
+                }
             }
-        }
-        const o = new B();
-        let c;
-        const r = reaction(() => {
-            c = o.c;
+            class B extends A {
+                c = computed(() => this.a + this.b);
+
+                constructor() {
+                    super();
+                    makeObservable(this);
+                }
+            }
+            const o = new B();
+            let c;
+            const r = reaction(() => {
+                c = o.c;
+            });
+            expect(() => r.run()).not.toThrow();
+            expect(c).toBe(3);
+            o.a = 2;
+            expect(c).toBe(5);
         });
-        expect(() => r.run()).not.toThrow();
-        expect(c).toBe(3);
-        o.a = 2;
-        expect(c).toBe(5);
-    });
 
-    test("makeObservable doesn't execute getters", () => {
-        let count = 0;
-        const o = makeObservable({
-            get a() {
-                return (count += 1);
-            },
+        test("makeObservable doesn't execute getters", () => {
+            let count = 0;
+            const o = makeObservable({
+                get a() {
+                    return (count += 1);
+                },
+            });
+            expect(count).toBe(0);
         });
-        expect(count).toBe(0);
     });
 
-    test("notify doesn't throw on empty thunk fn", () => {
-        expect(() => notify(() => {})).not.toThrow();
-    });
+    describe("makeObservableProto", () => {
+        test("doesn't throw on empty object", () => {
+            class A {
+                constructor() {
+                    this.a = 1;
+                    makeObservableProto(this, A, {});
+                }
+            }
 
-    test("notify calls .notify() on observables accessed in thunk fn", () => {
-        const o = makeObservable({
-            a: observable(1),
-            b: observable(2),
+            expect(() => new A()).not.toThrow();
         });
-        const c = computed(() => {
-            trackUpdate(c);
-            return o.a + 1;
+
+        test("doesn't add own enumerable properties on object", () => {
+            class A {
+                constructor() {
+                    this.a = 1;
+                    makeObservableProto(this, A, {
+                        b: observable(2),
+                        c: computed(() => this.a + this.b),
+                    });
+                }
+            }
+
+            const obj = new A();
+            const keys = Object.keys(obj);
+
+            expect(keys).toStrictEqual(["a"]);
+            expect(obj.a).toBe(1);
+            expect(obj.b).toBe(2);
+            expect(obj.c).toBe(3);
         });
-        const d = computed(() => {
-            trackUpdate(d);
-            return o.b + 1;
+
+        test("creates getters and setters for observables", () => {
+            class A {
+                constructor() {
+                    makeObservableProto(this, A, {
+                        a: observable(1),
+                        b: observable(2),
+                    });
+                }
+            }
+
+            const obj = new A();
+
+            let res;
+            const r = reaction(() => {
+                res = obj.a + obj.b;
+            });
+            r.run();
+
+            expect(res).toBe(3);
+
+            obj.a = 2;
+            expect(res).toBe(4);
+
+            obj.b = 3;
+            expect(res).toBe(5);
         });
-        expect(c.get()).toBe(2);
-        expect(trackedUpdates(c)).toBe(1);
-        expect(d.get()).toBe(3);
-        expect(trackedUpdates(d)).toBe(1);
-        // repeat
-        expect(c.get()).toBe(2);
-        expect(trackedUpdates(c)).toBe(1);
-        expect(d.get()).toBe(3);
-        expect(trackedUpdates(d)).toBe(1);
-        // notify both
-        notify(() => (o.a, o.b));
-        // check
-        expect(c.get()).toBe(2);
-        expect(trackedUpdates(c)).toBe(2);
-        expect(d.get()).toBe(3);
-        expect(trackedUpdates(d)).toBe(2);
-        // notify only a
-        notify(() => o.a);
-        // check
-        expect(c.get()).toBe(2);
-        expect(trackedUpdates(c)).toBe(3);
-        expect(d.get()).toBe(3);
-        expect(trackedUpdates(d)).toBe(2);
+
+        test("creates getters for computed values", () => {
+            class A {
+                constructor() {
+                    makeObservableProto(this, A, {
+                        a: observable(1),
+                        b: observable(2),
+                        c: computed(() => {
+                            return this.a + this.b;
+                        }),
+                    });
+                }
+            }
+
+            const obj = new A();
+
+            let res;
+            const r = reaction(() => {
+                res = obj.c;
+            });
+            r.run();
+
+            expect(res).toBe(3);
+
+            obj.a = 4;
+            expect(res).toBe(6);
+
+            expect(() => (obj.c = 100)).not.toThrow();
+            expect(res).toBe(6);
+        });
+
+        test("works in inheritance case", () => {
+            class A {
+                constructor() {
+                    this.a = 1;
+                    makeObservableProto(this, A, {
+                        b: observable(2),
+                        c: computed(() => this.a + this.b),
+                    });
+                }
+            }
+
+            class B extends A {
+                constructor() {
+                    super();
+                    this.d = 4;
+                    makeObservableProto(this, B, {
+                        e: observable(5),
+                        f: computed(() => this.e + this.c),
+                    });
+                }
+            }
+
+            const a = new A();
+            const b = new B();
+
+            expect(Object.keys(a)).toStrictEqual(["a"]);
+            expect(Object.keys(b)).toStrictEqual(["a", "d"]);
+
+            expect(a.b).toBe(2);
+            expect(a.c).toBe(3);
+            expect(a.d).toBe(undefined);
+            expect(a.e).toBe(undefined);
+            expect(a.f).toBe(undefined);
+
+            expect(b.b).toBe(2);
+            expect(b.c).toBe(3);
+            expect(b.d).toBe(4);
+            expect(b.e).toBe(5);
+            expect(b.f).toBe(8);
+        });
+
+        test("throws when object value is not observable or computed instance", () => {
+            class A {
+                constructor() {
+                    makeObservableProto(this, A, {
+                        a: observable(1),
+                        b: computed(() => this.a),
+                        c: "hello kitty",
+                    });
+                }
+            }
+
+            expect(() => new A()).toThrow();
+        });
+
+        test("Work with symbols", () => {
+            const S = Symbol("test");
+            class A {
+                constructor() {
+                    makeObservableProto(this, A, {
+                        a: observable(1),
+                        b: computed(() => this.a + 1),
+                        [S]: computed(() => this.a + this.b),
+                    })
+                }
+            }
+
+            const a = new A();
+
+            expect(a[S]).toBe(3);
+        })
     });
 
-    test("notify throws on computed notify", () => {
-        const o = observable(1);
-        const c = computed(() => o.get() + 1);
+    describe("notify", () => {
+        test("notify doesn't throw on empty thunk fn", () => {
+            expect(() => notify(() => {})).not.toThrow();
+        });
 
-        expect(() => notify(() => c.get())).toThrow();
-        expect(() => notify(() => o.get())).not.toThrow();
+        test("notify calls .notify() on observables accessed in thunk fn", () => {
+            const o = makeObservable({
+                a: observable(1),
+                b: observable(2),
+            });
+            const c = computed(() => {
+                trackUpdate(c);
+                return o.a + 1;
+            });
+            const d = computed(() => {
+                trackUpdate(d);
+                return o.b + 1;
+            });
+            expect(c.get()).toBe(2);
+            expect(trackedUpdates(c)).toBe(1);
+            expect(d.get()).toBe(3);
+            expect(trackedUpdates(d)).toBe(1);
+            // repeat
+            expect(c.get()).toBe(2);
+            expect(trackedUpdates(c)).toBe(1);
+            expect(d.get()).toBe(3);
+            expect(trackedUpdates(d)).toBe(1);
+            // notify both
+            notify(() => (o.a, o.b));
+            // check
+            expect(c.get()).toBe(2);
+            expect(trackedUpdates(c)).toBe(2);
+            expect(d.get()).toBe(3);
+            expect(trackedUpdates(d)).toBe(2);
+            // notify only a
+            notify(() => o.a);
+            // check
+            expect(c.get()).toBe(2);
+            expect(trackedUpdates(c)).toBe(3);
+            expect(d.get()).toBe(3);
+            expect(trackedUpdates(d)).toBe(2);
+        });
+
+        test("notify throws on computed notify", () => {
+            const o = observable(1);
+            const c = computed(() => o.get() + 1);
+
+            expect(() => notify(() => c.get())).toThrow();
+            expect(() => notify(() => o.get())).not.toThrow();
+        });
     });
 
-    test("fromGetter doesn't throw on empty thunk fn", () => {
-        expect(() => fromGetter(() => {})).not.toThrow();
-        expect(fromGetter(() => {})).toBe(undefined);
-    });
+    describe("fromGetter", () => {
+        test("fromGetter doesn't throw on empty thunk fn", () => {
+            expect(() => fromGetter(() => {})).not.toThrow();
+            expect(fromGetter(() => {})).toBe(undefined);
+        });
 
-    test("fromGetter returns observable or computed instance accessed on thunk fn", () => {
-        const o = observable(1);
-        const c = computed(() => o.get() + 1);
-        expect(fromGetter(() => o.get())).toBe(o);
-        expect(fromGetter(() => c.get())).toBe(c);
-    });
+        test("fromGetter returns observable or computed instance accessed on thunk fn", () => {
+            const o = observable(1);
+            const c = computed(() => o.get() + 1);
+            expect(fromGetter(() => o.get())).toBe(o);
+            expect(fromGetter(() => c.get())).toBe(c);
+        });
 
-    test("fromGetter returns observable or computed instance accessed on thunk fn (makeObservable)", () => {
-        const o = observable(1);
-        const c = computed(() => o.get() + 1);
-        const oo = makeObservable({ o, c });
-        expect(fromGetter(() => oo.o)).toBe(o);
-        expect(fromGetter(() => oo.c)).toBe(c);
-    });
+        test("fromGetter returns observable or computed instance accessed on thunk fn (makeObservable)", () => {
+            const o = observable(1);
+            const c = computed(() => o.get() + 1);
+            const oo = makeObservable({ o, c });
+            expect(fromGetter(() => oo.o)).toBe(o);
+            expect(fromGetter(() => oo.c)).toBe(c);
+        });
 
-    test("fromGetter returns latest accessed observable in thunk fn", () => {
-        const o1 = observable(1);
-        const o2 = observable(2);
-        expect(fromGetter(() => (o1.get(), o2.get()))).toBe(o2);
+        test("fromGetter returns latest accessed observable in thunk fn", () => {
+            const o1 = observable(1);
+            const o2 = observable(2);
+            expect(fromGetter(() => (o1.get(), o2.get()))).toBe(o2);
+        });
     });
 });
 

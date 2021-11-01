@@ -2,17 +2,17 @@
 
 [![NPM version](https://img.shields.io/npm/v/dipole)](https://www.npmjs.com/package/dipole)
 [![Minzipped size](https://img.shields.io/bundlephobia/minzip/dipole?color=green)](https://www.npmjs.com/package/dipole)
+[![codecov](https://codecov.io/gh/zheksoon/dipole/branch/master/graph/badge.svg?token=WMVIB287XM)](https://codecov.io/gh/zheksoon/dipole)
 
-Dipole is tiny (just over 1K min gz) reactive state management library that could be used standalone or with React/Preact. It's heavily inspired by [MobX](https://github.com/mobxjs/mobx) and was initially thought as a pedagogical re-implementation of its core features, and had grown later to a complete library. At this moment dipole can be seen as MobX minus "magic".
+Dipole is tiny (just about 2K min gz) reactive state management library that could be used standalone or with React/Preact. It's heavily inspired by [MobX](https://github.com/mobxjs/mobx) and was initially thought as a pedagogical re-implementation of its core features, and had grown later to a complete library. At this moment dipole can be seen as MobX minus "magic".
 
 
 **Dipole features**:
 
  * Clean and minimalistic object-oriented implementation of observable/functional reactive paradigm in about 300 lines of code
- * Tiny core - just 3 classes and 3 functions
  * Opaque data structures - you can easily examine dipole internals in debugger, no class fields is mangled
  * Performance optimizations - even with a huge amount of observable/computed values dipole runs as efficiently as possible
- * Good test suit
+ * Good test suit - 100% test coverage for complex use cases
 
 # Installation
 
