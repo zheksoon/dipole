@@ -47,6 +47,14 @@
 
         <!-- Collapsed navigation -->
         <div class="navbar-header">
+            <!-- Expander button -->
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            
 
             <!-- Main title -->
 
@@ -57,11 +65,37 @@
 
         <!-- Expanded navigation -->
         <div class="navbar-collapse collapse">
+                <!-- Main navigation -->
+                <ul class="nav navbar-nav">
+                
+                
+                    <li class="active">
+                        <a href=".">Home</a>
+                    </li>
+                
+                
+                
+                    <li >
+                        <a href="api/">API reference</a>
+                    </li>
+                
+                
+                </ul>
 
             <ul class="nav navbar-nav navbar-right">
                     <li>
                         <a href="#" data-toggle="modal" data-target="#mkdocs_search_modal">
                             <i class="fas fa-search"></i> Search
+                        </a>
+                    </li>
+                    <li class="disabled">
+                        <a rel="prev" >
+                            <i class="fas fa-arrow-left"></i> Previous
+                        </a>
+                    </li>
+                    <li >
+                        <a rel="next" href="api/">
+                            Next <i class="fas fa-arrow-right"></i>
                         </a>
                     </li>
             </ul>
@@ -96,24 +130,7 @@
                 <li class="third-level"><a href="#advanced-reaction-usage">Advanced reaction usage</a></li>
                 <li class="third-level"><a href="#limitations">Limitations</a></li>
                 <li class="third-level"><a href="#reaction-utilities">Reaction utilities</a></li>
-        <li class="first-level "><a href="#api">API</a></li>
-            <li class="second-level"><a href="#observable_1">Observable</a></li>
-                
-            <li class="second-level"><a href="#computed_1">Computed</a></li>
-                
-            <li class="second-level"><a href="#reaction">Reaction</a></li>
-                
-            <li class="second-level"><a href="#transaction_1">transaction</a></li>
-                
-            <li class="second-level"><a href="#action">action</a></li>
-                
-            <li class="second-level"><a href="#utx">utx</a></li>
-                
-            <li class="second-level"><a href="#makeobservable">makeObservable</a></li>
-                
-            <li class="second-level"><a href="#fromgetter">fromGetter</a></li>
-                
-            <li class="second-level"><a href="#notify">notify</a></li>
+            <li class="second-level"><a href="#observable-utilities">Observable utilities</a></li>
                 
         <li class="first-level "><a href="#author">Author</a></li>
         <li class="first-level "><a href="#license">License</a></li>
@@ -253,29 +270,12 @@ const counter = observable(0)
 counter.get()   // returns 0
 counter.set(1)  // sets observable value to 1
 </code></pre>
-<p>Using <code>makeObservable</code> helper it's easy to convert observable properties on some object into convenient getters and setters:</p>
-<pre><code class="language-js">const counter = makeObservable({ count: observable(0) })
-
-counter.count     // return 0
-counter.count = 5 // sets observable to 5
-</code></pre>
-<p>Or the same with classes:</p>
-<pre><code class="language-js">class Counter {
-  count = observable(0)
-
-  constructor() {
-    makeObservable(this)
-  }
-}
-
-const counter = new Counter()
-</code></pre>
-<p>Only object's own properties <a href="#make-observable">are converted</a>.</p>
-<p>(You may also have noticed that code from <a href="#examples">Examples</a> section uses <code>observable.prop</code> instead of <code>observable</code> for defining fields - in fact, it's exactly the same function, the only difference is <a href="https://github.com/zheksoon/dipole/blob/master/src/index.d.ts#L30">its Typescript definition</a>: type of <code>observable.prop(T)</code> is <code>T</code>, while type of <code>observable(T)</code> is <code>Observable&lt;T&gt;</code>)</p>
-<p>There are also few helper functions designed to work with <code>makeObservable</code>: <a href="#fromgetter">fromGetter</a> and <a href="#notify">notify</a>.</p>
+<p>For sure, it might be not convinient to call <code>.get()</code> or <code>.set()</code> on every observable access, so <a href="#observable-utilities">there are some helpers</a> to make the the process easy and transparent.</p>
 <h2 id="computed">Computed</h2>
 <p>Computed values are values that are derived from other observables and computeds with some pure function. The function should not contain any side-effects other than returning a value and depend only on observable/computed values. The result of computed is cached until any of its dependencies are changed.</p>
-<pre><code class="language-js">import { computed } from 'dipole'
+<pre><code class="language-js">import { observable, computed } from 'dipole'
+
+const counter = observable(1)
 
 const double = computed(() =&gt; {
     console.log('Computing double value...')
@@ -326,7 +326,9 @@ badBoy.get()    // throws `Can't change observable value inside of computed`
 <p>Reactions are automatic actions that are triggered on dependent observable/computed changes</p>
 <pre><code class="language-js">const a = observable(1)
 const b = observable(2)
+
 const sum = computed(() =&gt; a.get() + b.get())
+
 const r = reaction(() =&gt; {
     console.log(`Sum of ${a.get()} and ${b.get()} is ${sum.get()}`)
 })
@@ -336,28 +338,38 @@ r.run()   // first run should be triggered manually
 a.set(3)  // prints 'Sum of 3 and 2 is 5'
 b.set(4)  // prints 'Sum of 3 and 4 is 7'
 </code></pre>
+<h3 id="transaction">Transaction</h3>
 <p>Last lines show that reaction reacts to <strong>each</strong> change in its dependencies, synchronously. But what if we want to batch changes and run reaction only once after both <code>a</code> and <code>b</code> changes?
 Here's the answer: <strong>transaction</strong>:</p>
-<h3 id="transaction">Transaction</h3>
 <pre><code class="language-js">// `tx` stands for `transaction`
 import { tx } from 'dipole'
 
 tx(() =&gt; {
     a.set(2)  // doesn't react
     b.set(3)  // doesn't react too
-})            // prints 'Sum 2 and 3 is 5' right after transaction end
+})            // prints 'Sum 2 and 3 is 5' right after the transaction end
 </code></pre>
 <h3 id="action-and-untracked-transaction">Action and untracked transaction</h3>
-<p><strong>Actions</strong> are functions wrapped in transaction. But there is also one significant difference with plain transactions: actions are <strong>untracked</strong>. This means that any access to any observable or computed fields performed in action won't be tracked by calling function/reaction. This makes actions building pieces for your application - they could be safely called from any place with predictable consequences:</p>
-<pre><code class="language-js">import { action } from 'dipole'
+<p><strong>Actions</strong> are functions wrapped in transaction. But there is also one significant difference with plain transactions: actions are <strong>untracked</strong>. This means that any access to any observable or computed fields performed in action won't be tracked by calling function/reaction. This makes actions building pieces of your application - they could be safely called from any place with predictable consequences. </p>
+<p>Actions do really play well with <a href="#observable-utilities">observable utilities</a>, making writing complex mutations simple.</p>
+<pre><code class="language-js">import { observable, action, makeObservable } from 'dipole'
 
-const addBoth = action((amount) =&gt; {
-    a.set(a.get() + amount)
-    b.set(b.get() + amount)
-})
+class SumModel {
+  constructor(a, b) {
+    this.a = observable.prop(a)
+    this.b = observable.prop(b)
+    makeObservable(this)
+  }
 
-// invoke action, all arguments and `this` are passed to inner function
-addBoth(3)  // prints 'Sum of 5 and 6 is 11' once
+  addBoth = action((amount) =&gt; {
+    this.a += amount
+    this.b += amount
+  })
+}
+
+const model = new SumModel(1, 2);
+
+model.addBoth(3);
 </code></pre>
 <p>Sometimes inplace untracked transactions are usefull too, so there is <code>utx</code> function for this (<code>utx</code> stands for Untracked TX):</p>
 <pre><code class="language-js">class UserModel {
@@ -456,64 +468,27 @@ cond.set(true);  // doesn't print too
 </code></pre>
 <p>In all cases, <code>when()</code> and <code>once()</code> will run body if condition is initially set to <code>true</code>.</p>
 <p>Returned object is <code>Reaction</code> instance, so it could be destroyed or run again as usual reaction.</p>
-<h1 id="api">API</h1>
-<h2 id="observable_1">Observable</h2>
-<pre><code class="language-js">new Observable(value)
-observable(value)
+<h2 id="observable-utilities">Observable utilities</h2>
+<p>Using <code>makeObservable</code> helper it's easy to convert observable properties on some object into convenient getters and setters:</p>
+<pre><code class="language-js">const counter = makeObservable({ count: observable(0) })
+
+counter.count     // return 0
+counter.count = 5 // sets observable to 5
 </code></pre>
-<p>Creates an <code>Observable</code> instance containing the <code>value</code></p>
-<pre><code class="language-js">Observable.prototype.get()
+<p>Or the same with classes:</p>
+<pre><code class="language-js">class Counter {
+  count = observable(0)
+
+  constructor() {
+    makeObservable(this)
+  }
+}
+
+const counter = new Counter()
 </code></pre>
-<p>Get the value from <code>Observable</code> instance and track the usage of the observable into underlying <code>Computed</code> or <code>Reaction</code></p>
-<pre><code class="language-js">Observable.prototype.set(value)
-</code></pre>
-<p>Sets a new value of <code>Observable</code>, notifying dependent <code>Computed</code>/<code>Reaction</code> about the change</p>
-<pre><code class="language-js">Observable.prototype.notify()
-</code></pre>
-<p>Notify dependent <code>Computed</code>/<code>Reaction</code> about a change in underlying <code>Observable</code>'s value. Useful after changing mutable objects like Arrays, Maps or any other objects.</p>
-<h2 id="computed_1">Computed</h2>
-<pre><code class="language-js">new Computed(computer)
-computed(computer)
-</code></pre>
-<p>Create a <code>Computed</code> instance with <code>computer</code> function used for computed value calculations. <code>computer</code> must be a pure function and not change/notify any observable - only <code>.get()</code> calls to other <code>Observable</code>/<code>Computed</code> values are prohibited.</p>
-<pre><code class="language-js">Computed.prototype.get()
-</code></pre>
-<p>Get result of <code>computer</code> function invocation. The result is computed at the moment of invocation, if it's the first time the method is called or some of computed dependencies are changed. Otherwise, cached value is returned. Also it tracks the usage of the computed into underlying <code>Computed</code> or <code>Reaction</code></p>
-<h2 id="reaction">Reaction</h2>
-<pre><code class="language-js">new Reaction(reactor [, context [, manager]])
-reaction(reactor [, context [, manager]])
-</code></pre>
-<p>Creates a <code>Reaction</code> instance with <code>reactor</code> function in its core, with optional <code>context</code> and <code>manager</code> arguments. <code>context</code> is <code>this</code> argument for <code>reactor</code> param, defaults to <code>undefined</code>. <code>manager</code> is a function that should somehow schedule/manage invocation of <code>.run()</code> method of the object on reaction's dependency change. See <a href="https://github.com/zheksoon/dipole-react">dipole-react</a> bindings for example of <code>manager</code> usage. </p>
-<pre><code class="language-js">Reaction.prototype.run(...arguments)
-</code></pre>
-<p>Runs reaction's <code>reactor</code> function with <code>this</code> set to <code>context</code> and passes all method's arguments to it. Reaction body runs in implicit transaction, so there is no need to use transactions inside it.</p>
-<pre><code class="language-js">Reaction.prototype.destroy()
-</code></pre>
-<p>Destroys reaction, so it doesn't react to any changes anymore before next manual invocation of <code>.run()</code> method.</p>
-<h2 id="transaction_1">transaction</h2>
-<pre><code class="language-js">tx(() =&gt; { ...transaction body... })
-</code></pre>
-<p>Execute transaction body function in transaction block. The body function is invoked without any arguments or <code>this</code>. </p>
-<h2 id="action">action</h2>
-<pre><code class="language-js">action((...args) =&gt; { ...action body... })
-</code></pre>
-<p>Returns a function wrapped in untracked transaction. Calls to the resulting function will pass all arguments and  <code>this</code> to action body.  Since action body is untracked, <code>.get()</code> calls or getters to any observables/computed values won't introduce new dependencies when called inside action body (but it's not true for transaction).</p>
-<h2 id="utx">utx</h2>
-<pre><code class="language-js">utx(() =&gt; { ...transaction body with result... })
-</code></pre>
-<p>Execute transaction body in untracked transaction and return execution result. Because transaction is untracked, <code>.get()</code> calls or getters to any observables/computed values won't introduce new dependencies when called inside of it.</p>
-<h2 id="makeobservable">makeObservable</h2>
-<pre><code class="language-js">makeObservable(object)
-</code></pre>
-<p>Iterates through own enumerable properties and replaces them with getters/setters for each instanse of Observable/Computed classes. Only properties are processed, so if there are already some getters on the object, they won't be invoked. Mutates the object and returns it as result.</p>
-<h2 id="fromgetter">fromGetter</h2>
-<pre><code class="language-js">fromGetter(() =&gt; { ...some getter call to observable/computed... })
-</code></pre>
-<p>Returns an observable/computed object hidden under some getter called in the body function. Returns <code>undefined</code> if the function didn't call any getters/<code>.get()</code> methods. If there is more than one getter call in the body function, only result for the latest one returned.</p>
-<h2 id="notify">notify</h2>
-<pre><code class="language-js">notify(() =&gt; { ...some getter calls on observables... })
-</code></pre>
-<p>Calls <code>.notify()</code> method on all observables, which getters were executed in body function.</p>
+<p>Only object's own properties <a href="#make-observable">are converted</a>.</p>
+<p>(You may also have noticed that code from <a href="#examples">Examples</a> section uses <code>observable.prop</code> instead of <code>observable</code> for defining fields - in fact, it's exactly the same function, the only difference is <a href="https://github.com/zheksoon/dipole/blob/master/src/index.d.ts#L30">its Typescript definition</a>: type of <code>observable.prop(T)</code> is <code>T</code>, while type of <code>observable(T)</code> is <code>Observable&lt;T&gt;</code>)</p>
+<p>There are also few helper functions designed to work with <code>makeObservable</code>: <a href="#fromgetter">fromGetter</a> and <a href="#notify">notify</a>.</p>
 <h1 id="author">Author</h1>
 <p>Eugene Daragan</p>
 <h1 id="license">License</h1>
@@ -622,5 +597,5 @@ reaction(reactor [, context [, manager]])
 
 <!--
 MkDocs version : 1.2.3
-Build Date UTC : 2021-11-04 18:56:02.942863+00:00
+Build Date UTC : 2021-11-04 19:50:39.759737+00:00
 -->

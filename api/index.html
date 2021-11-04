@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    
+    
+    <link rel="shortcut icon" href="../img/favicon.ico">
+
+    
+    <title>API reference - dipole</title>
+    
+
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.0/css/all.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.0/css/v4-shims.css">
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/hack-font@3.3.0/build/web/hack.min.css">
+    <link href='//rsms.me/inter/inter.css' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,700italic,400,300,600,700&subset=latin-ext,latin' rel='stylesheet' type='text/css'>
+    <link href="../css/bootstrap-custom.min.css" rel="stylesheet">
+    <link href="../css/base.min.css" rel="stylesheet">
+    <link href="../css/cinder.min.css" rel="stylesheet">
+
+    
+        
+        <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.18.0/build/styles/github.min.css">
+        
+    
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+            <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js"></script>
+        <![endif]-->
+
+    
+
+     
+</head>
+
+<body>
+
+    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+    <div class="container">
+
+        <!-- Collapsed navigation -->
+        <div class="navbar-header">
+            <!-- Expander button -->
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            
+
+            <!-- Main title -->
+
+            
+              <a class="navbar-brand" href="..">dipole</a>
+            
+        </div>
+
+        <!-- Expanded navigation -->
+        <div class="navbar-collapse collapse">
+                <!-- Main navigation -->
+                <ul class="nav navbar-nav">
+                
+                
+                    <li >
+                        <a href="..">Home</a>
+                    </li>
+                
+                
+                
+                    <li class="active">
+                        <a href="./">API reference</a>
+                    </li>
+                
+                
+                </ul>
+
+            <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="#" data-toggle="modal" data-target="#mkdocs_search_modal">
+                            <i class="fas fa-search"></i> Search
+                        </a>
+                    </li>
+                    <li >
+                        <a rel="prev" href="..">
+                            <i class="fas fa-arrow-left"></i> Previous
+                        </a>
+                    </li>
+                    <li class="disabled">
+                        <a rel="next" >
+                            Next <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+    <div class="container">
+        
+        
+        <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
+    <ul class="nav bs-sidenav">
+        <li class="first-level active"><a href="#api-reference">API reference</a></li>
+            <li class="second-level"><a href="#observable">Observable</a></li>
+                
+                <li class="third-level"><a href="#constructor">constructor</a></li>
+                <li class="third-level"><a href="#get">.get()</a></li>
+                <li class="third-level"><a href="#setvalue">.set(value)</a></li>
+                <li class="third-level"><a href="#notify">.notify()</a></li>
+            <li class="second-level"><a href="#computed">Computed</a></li>
+                
+                <li class="third-level"><a href="#constructor_1">constructor</a></li>
+                <li class="third-level"><a href="#get_1">.get()</a></li>
+            <li class="second-level"><a href="#reaction">Reaction</a></li>
+                
+                <li class="third-level"><a href="#constructor_2">constructor</a></li>
+                <li class="third-level"><a href="#runargs">.run(...args)</a></li>
+                <li class="third-level"><a href="#destroy">.destroy()</a></li>
+            <li class="second-level"><a href="#actions-and-transactions">Actions and transactions</a></li>
+                
+                <li class="third-level"><a href="#actionargs">action(...args)</a></li>
+                <li class="third-level"><a href="#transaction-tx">transaction (tx)</a></li>
+                <li class="third-level"><a href="#untracked-transaction-utx">untracked transaction (utx)</a></li>
+            <li class="second-level"><a href="#utilities">Utilities</a></li>
+                
+                <li class="third-level"><a href="#makeobservableobject">makeObservable(object)</a></li>
+                <li class="third-level"><a href="#fromgetterthunk">fromGetter(thunk)</a></li>
+                <li class="third-level"><a href="#notifythink">notify(think)</a></li>
+    </ul>
+</div></div>
+        <div class="col-md-9" role="main">
+
+<h1 id="api-reference">API reference</h1>
+<h2 id="observable">Observable</h2>
+<h3 id="constructor">constructor</h3>
+<pre><code class="language-js">new Observable(value)
+observable(value)
+</code></pre>
+<p>Creates an <code>Observable</code> instance containing the <code>value</code></p>
+<h3 id="get">.get()</h3>
+<pre><code class="language-js">Observable.prototype.get()
+</code></pre>
+<p>Get the value from <code>Observable</code> instance and track the usage of the observable into underlying <code>Computed</code> or <code>Reaction</code></p>
+<h3 id="setvalue">.set(value)</h3>
+<pre><code class="language-js">Observable.prototype.set(value)
+</code></pre>
+<p>Sets a new value of <code>Observable</code>, notifying dependent <code>Computed</code>/<code>Reaction</code> about the change</p>
+<h3 id="notify">.notify()</h3>
+<pre><code class="language-js">Observable.prototype.notify()
+</code></pre>
+<p>Notify dependent <code>Computed</code>/<code>Reaction</code> about a change in underlying <code>Observable</code>'s value. Useful after changing mutable objects like Arrays, Maps or any other objects.</p>
+<h2 id="computed">Computed</h2>
+<h3 id="constructor_1">constructor</h3>
+<pre><code class="language-js">new Computed(computer)
+computed(computer)
+</code></pre>
+<p>Create a <code>Computed</code> instance with <code>computer</code> function used for computed value calculations. <code>computer</code> must be a pure function and not change/notify any observable - only <code>.get()</code> calls to other <code>Observable</code>/<code>Computed</code> values are prohibited.</p>
+<h3 id="get_1">.get()</h3>
+<pre><code class="language-js">Computed.prototype.get()
+</code></pre>
+<p>Get result of <code>computer</code> function invocation. The result is computed at the moment of invocation, if it's the first time the method is called or some of computed dependencies are changed. Otherwise, cached value is returned. Also it tracks the usage of the computed into underlying <code>Computed</code> or <code>Reaction</code></p>
+<h2 id="reaction">Reaction</h2>
+<h3 id="constructor_2">constructor</h3>
+<pre><code class="language-js">new Reaction(reactor [, context [, manager]])
+reaction(reactor [, context [, manager]])
+</code></pre>
+<p>Creates a <code>Reaction</code> instance with <code>reactor</code> function in its core, with optional <code>context</code> and <code>manager</code> arguments. <code>context</code> is <code>this</code> argument for <code>reactor</code> param, defaults to <code>undefined</code>. <code>manager</code> is a function that should somehow schedule/manage invocation of <code>.run()</code> method of the object on reaction's dependency change. See <a href="https://github.com/zheksoon/dipole-react">dipole-react</a> bindings for example of <code>manager</code> usage. </p>
+<h3 id="runargs">.run(...args)</h3>
+<pre><code class="language-js">Reaction.prototype.run(...arguments)
+</code></pre>
+<p>Runs reaction's <code>reactor</code> function with <code>this</code> set to <code>context</code> and passes all method's arguments to it. Reaction body runs in implicit transaction, so there is no need to use transactions inside it.</p>
+<h3 id="destroy">.destroy()</h3>
+<pre><code class="language-js">Reaction.prototype.destroy()
+</code></pre>
+<p>Destroys reaction, so it doesn't react to any changes anymore before next manual invocation of <code>.run()</code> method.</p>
+<h2 id="actions-and-transactions">Actions and transactions</h2>
+<h3 id="actionargs">action(...args)</h3>
+<pre><code class="language-js">action((...args) =&gt; { ...action body... })
+</code></pre>
+<p>Returns a function wrapped in untracked transaction. Calls to the resulting function will pass all arguments and  <code>this</code> to action body.  Since action body is untracked, <code>.get()</code> calls or getters to any observables/computed values won't introduce new dependencies when called inside action body (but it's not true for transaction).</p>
+<h3 id="transaction-tx">transaction (tx)</h3>
+<pre><code class="language-js">tx(() =&gt; { ...transaction body... })
+</code></pre>
+<p>Execute transaction body function in transaction block. The body function is invoked without any arguments or <code>this</code>. </p>
+<h3 id="untracked-transaction-utx">untracked transaction (utx)</h3>
+<pre><code class="language-js">utx(() =&gt; { ...transaction body with result... })
+</code></pre>
+<p>Execute transaction body in untracked transaction and return execution result. Because transaction is untracked, <code>.get()</code> calls or getters to any observables/computed values won't introduce new dependencies when called inside of it.</p>
+<h2 id="utilities">Utilities</h2>
+<h3 id="makeobservableobject">makeObservable(object)</h3>
+<pre><code class="language-js">makeObservable(object)
+</code></pre>
+<p>Iterates through own enumerable properties and replaces them with getters/setters for each instanse of Observable/Computed classes. Only properties are processed, so if there are already some getters on the object, they won't be invoked. Mutates the object and returns it as result.</p>
+<h3 id="fromgetterthunk">fromGetter(thunk)</h3>
+<pre><code class="language-js">fromGetter(() =&gt; { ...some getter call to observable/computed... })
+</code></pre>
+<p>Returns an observable/computed object hidden under some getter called in the body function. Returns <code>undefined</code> if the function didn't call any getters/<code>.get()</code> methods. If there is more than one getter call in the body function, only result for the latest one returned.</p>
+<h3 id="notifythink">notify(think)</h3>
+<pre><code class="language-js">notify(() =&gt; { ...some getter calls on observables... })
+</code></pre>
+<p>Calls <code>.notify()</code> method on all observables, which getters were executed in body function.</p></div>
+        
+        
+    </div>
+
+    
+      <footer class="col-md-12 text-center">
+          
+          
+            <hr>
+            <p>
+            <small>Documentation built with <a href="http://www.mkdocs.org/">MkDocs</a>.</small>
+            </p>
+          
+
+          
+          
+      </footer>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="../js/bootstrap-3.0.3.min.js"></script>
+
+    
+    <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.18.0/build/highlight.min.js"></script>
+        
+    <script>hljs.initHighlightingOnLoad();</script>
+    
+
+    <script>var base_url = ".."</script>
+    
+    <script src="../js/base.js"></script>
+    <script src="../search/main.js"></script>
+
+    <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+            </div>
+            <div class="modal-body">
+                <p>
+                    From here you can search these documents. Enter
+                    your search terms below.
+                </p>
+                <form>
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+    </body>
+
+</html>
