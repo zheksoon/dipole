@@ -8,10 +8,10 @@
     
     
     
-    <link rel="shortcut icon" href="img/favicon.ico">
+    <link rel="shortcut icon" href="../img/favicon.ico">
 
     
-    <title>Home - dipole</title>
+    <title>Examples - dipole</title>
     
 
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.0/css/all.css">
@@ -19,9 +19,9 @@
     <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/hack-font@3.3.0/build/web/hack.min.css">
     <link href='//rsms.me/inter/inter.css' rel='stylesheet' type='text/css'>
     <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,700italic,400,300,600,700&subset=latin-ext,latin' rel='stylesheet' type='text/css'>
-    <link href="css/bootstrap-custom.min.css" rel="stylesheet">
-    <link href="css/base.min.css" rel="stylesheet">
-    <link href="css/cinder.min.css" rel="stylesheet">
+    <link href="../css/bootstrap-custom.min.css" rel="stylesheet">
+    <link href="../css/base.min.css" rel="stylesheet">
+    <link href="../css/cinder.min.css" rel="stylesheet">
 
     
         
@@ -40,7 +40,7 @@
      
 </head>
 
-<body class="homepage" >
+<body>
 
     <div class="navbar navbar-default navbar-fixed-top" role="navigation">
     <div class="container">
@@ -59,7 +59,7 @@
             <!-- Main title -->
 
             
-              <a class="navbar-brand" href=".">dipole</a>
+              <a class="navbar-brand" href="..">dipole</a>
             
         </div>
 
@@ -69,26 +69,26 @@
                 <ul class="nav navbar-nav">
                 
                 
+                    <li >
+                        <a href="..">Home</a>
+                    </li>
+                
+                
+                
+                    <li >
+                        <a href="../introduction/">Introduction</a>
+                    </li>
+                
+                
+                
                     <li class="active">
-                        <a href=".">Home</a>
+                        <a href="./">Examples</a>
                     </li>
                 
                 
                 
                     <li >
-                        <a href="introduction/">Introduction</a>
-                    </li>
-                
-                
-                
-                    <li >
-                        <a href="examples/">Examples</a>
-                    </li>
-                
-                
-                
-                    <li >
-                        <a href="api/">API reference</a>
+                        <a href="../api/">API reference</a>
                     </li>
                 
                 
@@ -101,7 +101,7 @@
                         </a>
                     </li>
                     <li>
-                        <a href="https://github.com/zheksoon/dipole/edit/master/docs/index.md"><i class="fab fa-github"></i> Edit on GitHub</a>
+                        <a href="https://github.com/zheksoon/dipole/edit/master/docs/examples.md"><i class="fab fa-github"></i> Edit on GitHub</a>
                     </li>
             </ul>
         </div>
@@ -113,38 +113,124 @@
         
         <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
     <ul class="nav bs-sidenav">
-        <li class="first-level active"><a href="#installation">Installation</a></li>
-        <li class="first-level "><a href="#introduction">Introduction</a></li>
-        <li class="first-level "><a href="#examples">Examples</a></li>
-        <li class="first-level "><a href="#author">Author</a></li>
-        <li class="first-level "><a href="#license">License</a></li>
+        <li class="first-level active"><a href="#examples-using-react-bindings">Examples using React bindings</a></li>
+            <li class="second-level"><a href="#example-0-counter-basics-of-observables-and-actions">Example 0: Counter. Basics of observables and actions</a></li>
+                
+            <li class="second-level"><a href="#example-1-counter-list-model-composition-and-computed-data">Example 1: Counter list. Model composition and computed data</a></li>
+                
+            <li class="second-level"><a href="#example-2-todomvc-the-classics-of">Example 2: TodoMVC. The classics of.</a></li>
+                
     </ul>
 </div></div>
         <div class="col-md-9" role="main">
 
-<p><img alt="dipole" src="./assets/dipole-transparent-black.png" style="height: 100px" /></p>
-<p><a href="https://www.npmjs.com/package/dipole"><img alt="NPM version" src="https://img.shields.io/npm/v/dipole" /></a>
-<a href="https://www.npmjs.com/package/dipole"><img alt="Minzipped size" src="https://img.shields.io/bundlephobia/minzip/dipole?color=green" /></a>
-<a href="https://codecov.io/gh/zheksoon/dipole"><img alt="codecov" src="https://codecov.io/gh/zheksoon/dipole/branch/master/graph/badge.svg?token=WMVIB287XM" /></a></p>
-<p><strong>dipole</strong> is tiny (just about 2K min gz) reactive state management library that could be used standalone or with React/Preact. It's heavily inspired by <a href="https://github.com/mobxjs/mobx">MobX</a> and was initially thought as a pedagogical re-implementation of its core features, and had grown later to a complete library. At this moment dipole can be seen as MobX minus "magic".</p>
-<p><strong>dipole features</strong>:</p>
-<ul>
-<li>Clean and minimalistic object-oriented implementation of observable/functional reactive paradigm in about 500 lines of code</li>
-<li>Opaque data structures - you can easily examine dipole internals in debugger, no class fields is mangled</li>
-<li>Performance optimizations - even with a huge amount of observable/computed values dipole runs as efficiently as possible</li>
-<li>Good test suit - 100% test coverage for complex use cases</li>
-</ul>
-<h2 id="installation">Installation</h2>
-<pre><code class="language-bash">npm install --save dipole
+<h1 id="examples-using-react-bindings">Examples using React bindings</h1>
+<h2 id="example-0-counter-basics-of-observables-and-actions">Example 0: Counter. Basics of observables and actions</h2>
+<p><a href="https://codesandbox.io/s/dipole-react-example-counter-o4w64">Open in Codesandbox</a></p>
+<pre><code class="language-jsx">import { action, observable, makeObservable } from &quot;dipole&quot;;
+import { observer } from &quot;dipole-react&quot;;
+
+let counterId = 0;
+
+class CounterModel {
+  // not observable field
+  id = counterId++;
+  // observable field
+  count = observable.prop(0);
+
+  constructor() {
+    // creates getters and setters for observable fields for transparency
+    makeObservable(this);
+  }
+
+  // actions are atomic changes on observables, see introduction below
+  inc = action(() =&gt; (this.count += 1));
+  dec = action(() =&gt; (this.count -= 1));
+  reset = action(() =&gt; (this.count = 0));
+}
+
+// React component wrapped into `observer` re-renders on observable changes
+const Counter = observer(({ model, onRemove }) =&gt; {
+  return (
+    &lt;div&gt;
+      Counter is: {model.count}
+      &lt;button onClick={model.inc}&gt;+&lt;/button&gt;
+      &lt;button onClick={model.dec}&gt;-&lt;/button&gt;
+      &lt;button onClick={model.reset}&gt;Reset&lt;/button&gt;
+      {onRemove &amp;&amp; &lt;button onClick={() =&gt; onRemove(model.id)}&gt;Remove&lt;/button&gt;}
+    &lt;/div&gt;
+  );
+});
+
+const counterModel = new CounterModel();
+
+ReactDOM.render(&lt;Counter model={counterModel} /&gt;, document.getElementById(&quot;root&quot;));
 </code></pre>
-<h2 id="introduction">Introduction</h2>
-<p>Check out the <a href="introduction/">introduction page</a></p>
-<h2 id="examples">Examples</h2>
-<p>Check out the <a href="examples/">Examples page</a></p>
-<h2 id="author">Author</h2>
-<p>Eugene Daragan</p>
-<h2 id="license">License</h2>
-<p>MIT</p></div>
+<h2 id="example-1-counter-list-model-composition-and-computed-data">Example 1: Counter list. Model composition and computed data</h2>
+<p>Using the counter example above, let's compose multiple Counter models into a more complex app.</p>
+<p><a href="https://codesandbox.io/s/dipole-react-example-counter-list-u1fvc?file=/src/index.js">Open in Codesandbox</a></p>
+<pre><code class="language-jsx">import { computed } from &quot;dipole&quot;;
+
+class CounterListModel {
+  counters = observable.prop([]);
+
+  // computeds are fields with data derived from other computeds/observables
+  countersTotal = computed.prop(() =&gt; {
+    return this.counters.length;
+  });
+
+  countersSum = computed.prop(() =&gt; {
+    return this.counters.reduce((acc, counter) =&gt; acc + counter.count, 0);
+  });
+
+  constructor() {
+    makeObservable(this);
+  }
+
+  addCounter = action(() =&gt; {
+    const counter = new CounterModel();
+    this.counters.push(counter);
+    // as observables are dumb containers for data,
+    // we need to let them know about changes in underlying data structures
+    this.counters = this.counters; // or notify(() =&gt; this.counters)
+  });
+
+  removeCounter = action((id) =&gt; {
+    // no need for notify() because we are doing an assignment here
+    this.counters = this.counters.filter((counter) =&gt; counter.id !== id);
+  });
+
+  // action can aggregate multiple other actions and still be atomic
+  resetAll = action(() =&gt; {
+    this.counters.forEach((counter) =&gt; counter.reset());
+  });
+}
+
+const CounterList = observer(({ model }) =&gt; {
+  return (
+    &lt;div&gt;
+      &lt;p&gt;Counters total: {model.countersTotal}&lt;/p&gt;
+      &lt;p&gt;Counters sum: {model.countersSum}&lt;/p&gt;
+      {model.counters.map((counter) =&gt; (
+        &lt;Counter
+          key={counter.id}
+          model={counter}
+          onRemove={model.removeCounter}
+        /&gt;
+      ))}
+      &lt;button onClick={model.addCounter}&gt;Add counter&lt;/button&gt;
+      &lt;button onClick={model.resetAll}&gt;Reset all&lt;/button&gt;
+    &lt;/div&gt;
+  );
+});
+
+const counterListModel = new CounterListModel();
+
+ReactDOM.render(&lt;CounterList model={counterListModel} /&gt;, document.getElementById(&quot;root&quot;));
+</code></pre>
+<h2 id="example-2-todomvc-the-classics-of">Example 2: TodoMVC. The classics of.</h2>
+<p><a href="https://github.com/zheksoon/dipole-react-todo-mvc">Repository</a></p>
+<p><a href="https://codesandbox.io/s/dipole-react-example-todo-mvc-typescript-7rxzw?file=/src/App.tsx">Open in Codesandbox</a></p></div>
         
         
     </div>
@@ -164,7 +250,7 @@
       </footer>
     
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-    <script src="js/bootstrap-3.0.3.min.js"></script>
+    <script src="../js/bootstrap-3.0.3.min.js"></script>
 
     
     <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.18.0/build/highlight.min.js"></script>
@@ -172,10 +258,10 @@
     <script>hljs.initHighlightingOnLoad();</script>
     
 
-    <script>var base_url = "."</script>
+    <script>var base_url = ".."</script>
     
-    <script src="js/base.js"></script>
-    <script src="search/main.js"></script>
+    <script src="../js/base.js"></script>
+    <script src="../search/main.js"></script>
 
     <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -246,8 +332,3 @@
     </body>
 
 </html>
-
-<!--
-MkDocs version : 1.2.3
-Build Date UTC : 2021-11-06 11:37:42.569748+00:00
--->
