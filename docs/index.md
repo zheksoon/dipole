@@ -1,3 +1,8 @@
+---
+title: dipole
+summary: dipole - tiny reactive state management that just works
+authors: Eugene Daragan
+---
 <a href="https://dipole.js.org">
   <img alt="dipole" src="https://dipole.js.org/assets/dipole-transparent-black.png" style="height: 100px" />
 </a>
@@ -8,7 +13,7 @@
 
 **dipole** is tiny (just about 2K min gz) reactive state management library that could be used standalone or with React/Preact. It's heavily inspired by [MobX](https://github.com/mobxjs/mobx) and was initially thought as a pedagogical re-implementation of its core features, and had grown later to a complete library. At this moment dipole can be seen as MobX minus "magic".
 
-## dipole features
+**dipole features**:
 
  * Clean and minimalistic object-oriented implementation of observable/functional reactive paradigm in about 500 lines of code
  * Opaque data structures - you can easily examine dipole internals in debugger, no class fields is mangled
@@ -21,17 +26,13 @@
 npm install --save dipole
 ```
 
-## Documentation
-
-Check out the [full documentation on **dipole.js.org**](https://dipole.js.org)
-
 ## Introduction
 
-Check out the [introduction page](https://dipole.js.org/introduction/)
+Check out the [introduction page](introduction.md)
 
 ## Examples
 
-Check out the [Examples page](https://dipole.js.org/examples/)
+Check out the [Examples page](examples.md)
 
 ## Author
 Eugene Daragan

@@ -1,0 +1,12 @@
+site_name: dipole
+theme:
+  name: null
+  custom_dir: 'docs/theme/cinder'
+  disable_nav_previous_next: true
+repo_url: https://github.com/zheksoon/dipole
+nav:
+  - Home: index.md
+  - Introduction: introduction.md
+  - Examples: examples.md
+  - API reference: api.md
+   

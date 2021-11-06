@@ -31,7 +31,8 @@
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "build": "npx microbundle build src/index.js"
+    "build": "npx microbundle build src/index.js",
+    "build-docs": "mkdocs gh-deploy"
   },
   "jest": {
     "testEnvironment": "node"
