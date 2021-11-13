@@ -304,3 +304,50 @@ Only object's own properties [are converted](api.md#makeobservableobject).
 (You may also have noticed that code from [Examples](examples.md) section uses `observable.prop` instead of `observable` for defining fields - in fact, it's exactly the same function, the only difference is [its Typescript definition](https://github.com/zheksoon/dipole/blob/master/src/index.d.ts#L30): type of `observable.prop(T)` is `T`, while type of `observable(T)` is `Observable<T>`)
 
 There are also few helper functions designed to work with `makeObservable`: [fromGetter](api.md#fromgetterthunk) and [notify](api.md#notifythunk).
+
+## Extra: value-checked observables and computeds
+
+By default, observables and computeds never touch the values they store, so they can't know if the assigned or computed value has changed. It's convinient for the most cases, but sometimes might lead to unnecessarily reactions or expensive computations you might want to eliminate. 
+
+Observables and computeds receive an second `options` parameter, which can contain `checkValue` function, which receives previous and new values and returns a boolean equality result. If the result is `true`, no further recomputations of dependant computeds or reactions is done. Here's an example:
+
+```js
+// simple comparison function
+const checkValue = (prev, next) => prev === next;
+
+// pass the checkValue function to observable
+const counter = observable(1, { checkValue }); 
+
+// pass the checkValue function to computed
+const absolute = computed(
+    () => {
+        console.log('computing absolute');
+        return Math.abs(counter.get());
+    },
+    { checkValue }, 
+);
+
+// regular computed without value check
+const doubleAbsolute = computed(() => {             
+    console.log('computing double')
+    return absolute.get() * 2;
+});
+
+const printer = reaction(() => {
+    console.log('result is', doubleAbsolute.get());
+});
+
+// first run, prints 'computing absolute' and 'computing double'
+printer.run();  
+
+// checkValue is called for observable, no computeds are recalculated, reaction doesn't run
+counter.set(1); 
+
+// prints 'computing absolute' and calls checkValue for computed, 
+// doubleAbsolute computed is not recalculated and reaction doesn't run
+counter.set(-1);
+```
+
+While the feature seems like a "silver bullet" for reducing amount of computation in your application, it comes with a price. Because dipole is guaratied to be glitch-free and consistent at every moment of time, there is some quite complicated logic behind the `checkValue` feature. Internally, dipole does a "virtual" run of every reaction potentially touched by the value-checked computeds change (called internally a "state actualization"), which implements some kind of topological sort of to-be-recomputed values, so the process might be not as lightweight as you could imagine.
+
+Given the fact, it's better to place value-checked computeds as close to reactions or consumers as possible, or at least benchmark cases with and without `checkValue` option.
