@@ -1,7 +1,7 @@
 import { glob, scheduleStateActualization, scheduleReaction } from "../globals";
 import { states } from "../constants";
 import { endTransaction } from "../transaction";
-import { removeSubscriptions, actualizeState } from "./common";
+import { removeSubscriptions } from "./common";
 
 export class Reaction {
     constructor(reaction, context, manager) {
