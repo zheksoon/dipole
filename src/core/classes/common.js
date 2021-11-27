@@ -36,7 +36,7 @@ export function removeSubscriptions(self) {
 
 export function notifyAndRemoveSubscribers(self, subscribersState, newOwnState) {
     self._subscribers.forEach((subscriber) => {
-        subscriber._notify(subscribersState);
+        subscriber._notify(subscribersState, self);
     });
 
     self._state = newOwnState;

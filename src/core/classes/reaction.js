@@ -35,29 +35,22 @@ export class Reaction {
         this._state = states.DESTROYED_BY_PARENT;
     }
 
-    _notify(state) {
-        if (this._state < state) {
+    _notify(state, notifier) {
+        if (this._state > state) {
+            return;
+        }
+
+        if (state === states.DIRTY) {
             this._state = state;
-
-            if (state === states.MAYBE_DIRTY) {
-                scheduleStateActualization(this);
-            }
-
-            if (state === states.DIRTY) {
-                scheduleReaction(this);
-                this._destroyChildren();
-            }
+            scheduleReaction(this);
+            this._destroyChildren();
+        } else if (state === states.MAYBE_DIRTY) {
+            scheduleStateActualization(notifier);
         }
     }
 
     _subscribeTo(subscription) {
         this._subscriptions.push(subscription);
-    }
-
-    _actualizeState() {
-        if (this._state === states.MAYBE_DIRTY) {
-            actualizeState(this);
-        }
     }
 
     runManager() {

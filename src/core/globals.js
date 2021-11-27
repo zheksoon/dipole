@@ -50,8 +50,8 @@ export function scheduleStateActualization(computed) {
 }
 
 export function runScheduledStateActualizations() {
-    let reaction;
-    while ((reaction = gScheduledStateActualizations.pop())) {
-        reaction._actualizeState();
+    let computed;
+    while ((computed = gScheduledStateActualizations.pop())) {
+        computed._actualizeState();
     }
 }
