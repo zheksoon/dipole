@@ -16,6 +16,10 @@ export function scheduleReaction(reaction) {
     gScheduledReactions.push(reaction);
 }
 
+export function hasScheduledReactions() {
+    return gScheduledReactions.length > 0;
+}
+
 export function runScheduledReactions() {
     let reaction;
     while ((reaction = gScheduledReactions.pop())) {
@@ -47,6 +51,10 @@ export function runScheduledSubscribersChecks() {
 
 export function scheduleStateActualization(computed) {
     gScheduledStateActualizations.push(computed);
+}
+
+export function hasScheduledStateActualizations() {
+    return gScheduledStateActualizations.length > 0;
 }
 
 export function runScheduledStateActualizations() {

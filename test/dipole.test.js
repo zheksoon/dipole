@@ -1188,6 +1188,45 @@ describe("Reaction tests", () => {
         expect(c).toBe(1);
     });
 
+    test("reaction runs in the end of transaction when value-checked computed triggers it", () => {
+        const checkValue = (a, b) => a == b;
+
+        const o1 = observable(1);
+        const c1 = computed(() => o1.get() * 2, { checkValue });
+        const o2 = observable(1);
+        const c2 = computed(() => o2.get() * 2, { checkValue });
+        const o3 = observable(1);
+        const c3 = computed(() => o3.get() * 2, { checkValue });
+
+        const r1 = reaction(() => {
+            const val = c1.get();
+            o2.set(val);
+            trackUpdate(r1);
+        });
+        const r2 = reaction(() => {
+            const val = c2.get();
+            o3.set(val);
+            trackUpdate(r2);
+        });
+        const r3 = reaction(() => {
+            c3.get();
+            trackUpdate(r3);
+        });
+        r1.run();
+        r2.run();
+        r3.run();
+
+        expect(trackedUpdates(r1)).toBe(1);
+        expect(trackedUpdates(r2)).toBe(1);
+        expect(trackedUpdates(r3)).toBe(1);
+
+        o1.set(2);
+
+        expect(trackedUpdates(r1)).toBe(2);
+        expect(trackedUpdates(r2)).toBe(2);
+        expect(trackedUpdates(r3)).toBe(2);
+    });
+
     describe("nested reactions", () => {
         test("nested reaction is destroyed when parent is destroyed", () => {
             const o1 = observable(1);
@@ -1903,14 +1942,14 @@ describe("makeObservable and related functions", () => {
                         a: observable(1),
                         b: computed(() => this.a + 1),
                         [S]: computed(() => this.a + this.b),
-                    })
+                    });
                 }
             }
 
             const a = new A();
 
             expect(a[S]).toBe(3);
-        })
+        });
     });
 
     describe("notify", () => {

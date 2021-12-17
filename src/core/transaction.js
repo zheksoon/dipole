@@ -1,4 +1,10 @@
-import { glob, runScheduledStateActualizations, runScheduledReactions } from "./globals";
+import {
+    glob,
+    runScheduledStateActualizations,
+    runScheduledReactions,
+    hasScheduledStateActualizations,
+    hasScheduledReactions,
+} from "./globals";
 
 // Transaction (TX)
 export function tx(thunk) {
@@ -58,6 +64,8 @@ export function action(fn) {
 }
 
 export function endTransaction() {
-    runScheduledStateActualizations();
-    runScheduledReactions();
+    while (hasScheduledStateActualizations() || hasScheduledReactions()) {
+        runScheduledStateActualizations();
+        runScheduledReactions();
+    }
 }

@@ -65,6 +65,8 @@ declare module "dipole" {
 
     export function makeObservable<T extends object>(obj: T): T;
 
+    export function asProp<T>(value: Observable<T> | Computed<T>): T;
+
     type ObservableProps<T extends object> = {
         [K in keyof T]?: Observable<T[K]> | Computed<T[K]>;
     };

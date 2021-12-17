@@ -43,15 +43,13 @@ export function notifyAndRemoveSubscribers(self, subscribersState, newOwnState) 
 }
 
 export function actualizeState(self) {
-    const subscriptions = self._subscriptions;
-    for (let i = 0; i < subscriptions.length; i++) {
-        subscriptions[i]._actualizeState();
-        if (self._state === states.DIRTY) {
-            break;
-        }
-    }
+    const actualizeAndCheckSelf = (subscription) => {
+        subscription._actualizeState();
+        return self._state === states.MAYBE_DIRTY;
+    };
+
     // we actualized all subscriptions and nobody notified us, so we are clean
-    if (self._state === states.MAYBE_DIRTY) {
+    if (!self._subscriptions.some(actualizeAndCheckSelf)) {
         self._state = states.CLEAN;
     }
 }
@@ -62,10 +60,6 @@ export function getCheckValueFn(options) {
         if (typeof checkValueFn === "function") {
             return checkValueFn;
         }
-        // TODO: add shallow-equals dependency
-        // } else if (!!checkValueFn) {
-        //     return shallowEquals;
-        // }
     }
     return null;
 }

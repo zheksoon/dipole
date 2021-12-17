@@ -43,6 +43,11 @@ export function makeObservable(obj) {
     return obj;
 }
 
+// fool typescript a bit for seamless intergration with makeObservable
+export function asProp(value) {
+    return value;
+}
+
 const isSymbolAvailable = typeof Symbol !== "undefined";
 
 const observablesProp = isSymbolAvailable ? Symbol("$$observables") : "$$observables";
