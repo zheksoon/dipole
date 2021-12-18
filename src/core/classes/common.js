@@ -43,15 +43,16 @@ export function notifyAndRemoveSubscribers(self, subscribersState, newOwnState) 
 }
 
 export function actualizeState(self) {
-    const actualizeAndCheckSelf = (subscription) => {
-        subscription._actualizeState();
-        return self._state === states.MAYBE_DIRTY;
-    };
+    const subscriptions = self._subscriptions;
+    for (let i = 0; i < subscriptions.length; i++) {
+        subscriptions[i]._actualizeState();
+        if (self._state === states.DIRTY) {
+            return;
+        }
+    }
 
     // we actualized all subscriptions and nobody notified us, so we are clean
-    if (!self._subscriptions.some(actualizeAndCheckSelf)) {
-        self._state = states.CLEAN;
-    }
+    self._state = states.CLEAN;
 }
 
 export function getCheckValueFn(options) {
