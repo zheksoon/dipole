@@ -1,7 +1,7 @@
 {
   "name": "dipole",
-  "version": "2.2.4",
-  "description": "Dipole - tiny reactive state management that just works",
+  "version": "2.2.5",
+  "description": "dipole - tiny reactive state management that just works",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "unpkg": "dist/index.umd.js",

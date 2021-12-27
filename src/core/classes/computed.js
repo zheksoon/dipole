@@ -132,8 +132,7 @@ export class Computed {
 
     _checkSubscribers() {
         if (this._subscribers.size === 0) {
-            this._state = states.NOT_INITIALIZED;
-            removeSubscriptions(this);
+            this.destroy();
         }
     }
 }
