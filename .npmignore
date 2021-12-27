@@ -1,0 +1,6 @@
+*.tgz
+mkdocs.yml
+*/
+!dist/
+!src/
+!tsconfig.json
