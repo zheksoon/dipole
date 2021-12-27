@@ -1,5 +1,4 @@
 import { glob } from "../globals";
-import { states } from "../constants";
 import { setGetterSpyResult, gettersSpyContext, gettersNotifyContext } from "../extras";
 
 // Common methods
@@ -27,32 +26,26 @@ export function trackComputedContext(self) {
     }
 }
 
+export function addMaybeDirtySubscription(self, notifier) {
+    (self._maybeDirtySubscriptions || (self._maybeDirtySubscriptions = [])).push(notifier);
+}
+
 export function removeSubscriptions(self) {
     self._subscriptions.forEach((subscription) => {
         subscription._removeSubscriber(self);
     });
+
     self._subscriptions = [];
+
+    if (self._maybeDirtySubscriptions) {
+        self._maybeDirtySubscriptions = null;
+    }
 }
 
-export function notifyAndRemoveSubscribers(self, subscribersState, newOwnState) {
+export function notifySubscribers(self, subscribersState) {
     self._subscribers.forEach((subscriber) => {
         subscriber._notify(subscribersState, self);
     });
-
-    self._state = newOwnState;
-}
-
-export function actualizeState(self) {
-    const subscriptions = self._subscriptions;
-    for (let i = 0; i < subscriptions.length; i++) {
-        subscriptions[i]._actualizeState();
-        if (self._state === states.DIRTY) {
-            return;
-        }
-    }
-
-    // we actualized all subscriptions and nobody notified us, so we are clean
-    self._state = states.CLEAN;
 }
 
 export function getCheckValueFn(options) {

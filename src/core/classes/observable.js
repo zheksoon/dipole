@@ -6,14 +6,13 @@ import {
     getCheckValueFn,
     checkSpecialContexts,
     trackComputedContext,
-    notifyAndRemoveSubscribers,
+    notifySubscribers,
 } from "./common";
 
 export class Observable {
     constructor(value, options) {
         this._subscribers = new Set();
         this._value = value;
-        this._state = states.CLEAN;
         this._checkValueFn = getCheckValueFn(options);
     }
 
@@ -39,7 +38,7 @@ export class Observable {
     }
 
     notify() {
-        notifyAndRemoveSubscribers(this, states.DIRTY, states.CLEAN);
+        notifySubscribers(this, states.DIRTY);
 
         if (glob.gTransactionDepth === 0) {
             endTransaction();

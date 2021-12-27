@@ -36,16 +36,16 @@ export class Reaction {
     }
 
     _notify(state, notifier) {
-        if (this._state > state) {
+        if (this._state >= state) {
             return;
         }
 
-        if (state === states.DIRTY) {
+        if (state === states.MAYBE_DIRTY) {
+            scheduleStateActualization(notifier);
+        } else if (state === states.DIRTY) {
             this._state = state;
             scheduleReaction(this);
             this._destroyChildren();
-        } else if (state === states.MAYBE_DIRTY) {
-            scheduleStateActualization(notifier);
         }
     }
 

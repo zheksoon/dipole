@@ -5,19 +5,32 @@ import {
     getCheckValueFn,
     checkSpecialContexts,
     trackComputedContext,
+    addMaybeDirtySubscription,
     removeSubscriptions,
-    actualizeState,
-    notifyAndRemoveSubscribers,
+    notifySubscribers,
 } from "./common";
+
+function actualizeState(self) {
+    const actualizedAndNotNotified = (subscription) => {
+        subscription._actualizeState();
+        return self._state === states.MAYBE_DIRTY;
+    };
+
+    if (self._maybeDirtySubscriptions.every(actualizedAndNotNotified)) {
+        // we actualized all subscriptions and nobody notified us, so we are clean
+        self._state = states.CLEAN;
+    }
+}
 
 export class Computed {
     constructor(computer, options) {
         this._subscribers = new Set();
         this._value = undefined;
-        this._state = states.NOT_INITIALIZED;
         this._checkValueFn = getCheckValueFn(options);
+        this._state = states.NOT_INITIALIZED;
         this._computer = computer;
         this._subscriptions = [];
+        this._maybeDirtySubscriptions = null;
     }
 
     get() {
@@ -49,17 +62,19 @@ export class Computed {
     }
 
     _recomputeAndCheckValue() {
-        if (this._checkValueFn !== null && this._state !== states.NOT_INITIALIZED) {
-            const value = this._recomputeValue();
+        const stateBefore = this._state;
+        const value = this._recomputeValue();
+
+        if (this._checkValueFn !== null && stateBefore !== states.NOT_INITIALIZED) {
             const isSameValue = untracked(() => this._checkValueFn(this._value, value));
-            if (!isSameValue) {
-                this._value = value;
-                // the value has changed - do the delayed notification of all subscribers
-                notifyAndRemoveSubscribers(this, states.DIRTY, states.CLEAN);
-            }
-        } else {
-            this._value = this._recomputeValue();
+
+            if (isSameValue) return;
+
+            // the value has changed - do the delayed notification of all subscribers
+            notifySubscribers(this, states.DIRTY);
         }
+
+        this._value = value;
     }
 
     _recomputeValue() {
@@ -85,31 +100,33 @@ export class Computed {
         this._subscriptions.push(subscription);
     }
 
-    _removeSubscriber(subscriber) {
-        this._subscribers.delete(subscriber);
-
-        if (this._subscribers.size === 0) {
-            scheduleSubscribersCheck(this);
-        }
-    }
-
-    _notify(state) {
+    _notify(state, notifier) {
         if (this._state >= state) {
             return;
         }
 
         if (this._checkValueFn !== null) {
             if (this._state === states.CLEAN) {
-                notifyAndRemoveSubscribers(this, states.MAYBE_DIRTY, state);
-            } else {
-                this._state = state;
+                notifySubscribers(this, states.MAYBE_DIRTY);
             }
         } else {
-            notifyAndRemoveSubscribers(this, state, state);
+            notifySubscribers(this, state);
         }
 
-        if (state === states.DIRTY) {
+        this._state = state;
+
+        if (state === states.MAYBE_DIRTY) {
+            addMaybeDirtySubscription(this, notifier);
+        } else if (state === states.DIRTY) {
             removeSubscriptions(this);
+        }
+    }
+
+    _removeSubscriber(subscriber) {
+        this._subscribers.delete(subscriber);
+
+        if (this._subscribers.size === 0) {
+            scheduleSubscribersCheck(this);
         }
     }
 
