@@ -20,6 +20,8 @@ function actualizeState(self) {
         // we actualized all subscriptions and nobody notified us, so we are clean
         self._state = states.CLEAN;
     }
+
+    self._maybeDirtySubscriptions = null;
 }
 
 export class Computed {
