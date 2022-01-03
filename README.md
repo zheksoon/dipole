@@ -2,9 +2,11 @@
   <img alt="dipole" src="https://dipole.js.org/assets/dipole-transparent-black.png" style="height: 100px" />
 </a>
 
-[![NPM version](https://img.shields.io/npm/v/dipole)](https://www.npmjs.com/package/dipole)
-[![Minzipped size](https://img.shields.io/bundlephobia/minzip/dipole?color=green)](https://www.npmjs.com/package/dipole)
+[![NPM version](https://img.shields.io/npm/v/dipole)](https://www.npmjs.com/package/dipole-es3)
+[![Minzipped size](https://img.shields.io/bundlephobia/minzip/dipole?color=green)](https://www.npmjs.com/package/dipole-es3)
 [![codecov](https://codecov.io/gh/zheksoon/dipole/branch/master/graph/badge.svg?token=WMVIB287XM)](https://codecov.io/gh/zheksoon/dipole)
+
+**Important**: this is ES3-compatable version of dipole which implements custom `HashSet` data structure instead of ES6 `Set`. The implementation is fully compatable with original dipole and also consistently 2-3x faster in some scenarios. IE9 tests are pending.
 
 **dipole** is tiny (just about 2K min gz) reactive state management library that could be used standalone or with React/Preact. It's heavily inspired by [MobX](https://github.com/mobxjs/mobx) and was initially thought as a pedagogical re-implementation of its core features, and had grown later to a complete library. At this moment dipole can be seen as MobX minus "magic".
 
