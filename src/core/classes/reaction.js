@@ -2,9 +2,11 @@ import { glob, scheduleStateActualization, scheduleReaction } from "../globals";
 import { states } from "../constants";
 import { endTransaction } from "../transaction";
 import { removeSubscriptions } from "./common";
+import { randomInt } from "../utils/random";
 
 export class Reaction {
     constructor(reaction, context, manager) {
+        this._hash = randomInt();
         this._reaction = reaction;
         this._context = context || null;
         this._manager = manager;

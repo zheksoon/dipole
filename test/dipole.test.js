@@ -390,13 +390,13 @@ describe("Computed tests", () => {
         });
         c.get();
         expect(trackedUpdates(c)).toBe(1);
-        expect(o._subscribers.size).toBe(1);
+        expect(o._subscribers.size()).toBe(1);
         c.destroy();
         expect(trackedUpdates(c)).toBe(1);
-        expect(o._subscribers.size).toBe(0);
+        expect(o._subscribers.size()).toBe(0);
         c.get();
         expect(trackedUpdates(c)).toBe(2);
-        expect(o._subscribers.size).toBe(1);
+        expect(o._subscribers.size()).toBe(1);
     });
 
     describe("checkValue option", () => {
@@ -862,7 +862,7 @@ describe("Computed tests", () => {
 
             c1.get();
             expect(trackedUpdates(c1)).toBe(1);
-            expect(c1._subscribers.size).toBe(0); // unobserved
+            expect(c1._subscribers.size()).toBe(0); // unobserved
 
             o1.set(2);
             expect(trackedUpdates(c1)).toBe(1);
@@ -2046,16 +2046,16 @@ describe("Background subscribers check", () => {
         });
         r.run();
 
-        expect(c._subscribers.size).toBe(1);
-        expect(o._subscribers.size).toBe(1);
+        expect(c._subscribers.size()).toBe(1);
+        expect(o._subscribers.size()).toBe(1);
 
         flag.set(false);
-        expect(c._subscribers.size).toBe(0);
-        expect(o._subscribers.size).toBe(1); // computed is still subscribed
+        expect(c._subscribers.size()).toBe(0);
+        expect(o._subscribers.size()).toBe(1); // computed is still subscribed
 
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        expect(c._subscribers.size).toBe(0);
-        expect(o._subscribers.size).toBe(0); // computed is unsubscribed
+        expect(c._subscribers.size()).toBe(0);
+        expect(o._subscribers.size()).toBe(0); // computed is unsubscribed
     });
 });

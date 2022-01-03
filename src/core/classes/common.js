@@ -19,8 +19,7 @@ export function checkSpecialContexts(self) {
 export function trackComputedContext(self) {
     const { gComputedContext } = glob;
     if (gComputedContext !== null) {
-        if (!self._subscribers.has(gComputedContext)) {
-            self._subscribers.add(gComputedContext);
+        if (self._subscribers.add(gComputedContext)) {
             gComputedContext._subscribeTo(self);
         }
     }
@@ -42,10 +41,14 @@ export function removeSubscriptions(self) {
     }
 }
 
-export function notifySubscribers(self, subscribersState) {
+export function notifySubscribers(self, subscribersState, clearSubscribers) {
     self._subscribers.forEach((subscriber) => {
         subscriber._notify(subscribersState, self);
     });
+
+    if (clearSubscribers) {
+        self._subscribers.clearAndResize();
+    }
 }
 
 export function getCheckValueFn(options) {

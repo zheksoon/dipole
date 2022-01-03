@@ -1,6 +1,8 @@
 import { states } from "../constants";
 import { untracked } from "../transaction";
 import { glob, scheduleSubscribersCheck } from "../globals";
+import { HashSet } from "../data-structures/hash-set";
+import { randomInt } from "../utils/random";
 import {
     getCheckValueFn,
     checkSpecialContexts,
@@ -26,7 +28,8 @@ function actualizeState(self) {
 
 export class Computed {
     constructor(computer, options) {
-        this._subscribers = new Set();
+        this._hash = randomInt();
+        this._subscribers = new HashSet();
         this._value = undefined;
         this._checkValueFn = getCheckValueFn(options);
         this._state = states.NOT_INITIALIZED;
@@ -73,7 +76,7 @@ export class Computed {
             if (isSameValue) return;
 
             // the value has changed - do the delayed notification of all subscribers
-            notifySubscribers(this, states.DIRTY);
+            notifySubscribers(this, states.DIRTY, true);
         }
 
         this._value = value;
@@ -109,10 +112,10 @@ export class Computed {
 
         if (this._checkValueFn !== null) {
             if (this._state === states.CLEAN) {
-                notifySubscribers(this, states.MAYBE_DIRTY);
+                notifySubscribers(this, states.MAYBE_DIRTY, false);
             }
         } else {
-            notifySubscribers(this, state);
+            notifySubscribers(this, state, state === states.DIRTY);
         }
 
         this._state = state;
@@ -125,15 +128,15 @@ export class Computed {
     }
 
     _removeSubscriber(subscriber) {
-        this._subscribers.delete(subscriber);
+        this._subscribers.remove(subscriber);
 
-        if (this._subscribers.size === 0) {
+        if (this._subscribers.size() === 0) {
             scheduleSubscribersCheck(this);
         }
     }
 
     _checkSubscribers() {
-        if (this._subscribers.size === 0) {
+        if (this._subscribers.size() === 0) {
             this.destroy();
         }
     }

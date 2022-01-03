@@ -1,8 +1,10 @@
 import { SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL, states } from "./constants";
+import { HashSet } from "./data-structures/hash-set";
 
 let gScheduledReactions = [];
 let gScheduledStateActualizations = [];
-let gScheduledSubscribersChecks = new Set();
+let gScheduledSubscribersChecks = new HashSet();
+let gScheduledSubscribersChecksQueue = [];
 let gScheduledSubscribersCheckTimeout = null;
 
 export const glob = {
@@ -30,23 +32,24 @@ export function runScheduledReactions() {
 }
 
 export function scheduleSubscribersCheck(computed) {
-    gScheduledSubscribersChecks.add(computed);
-    if (!gScheduledSubscribersCheckTimeout) {
-        gScheduledSubscribersCheckTimeout = setTimeout(
-            runScheduledSubscribersChecks,
-            SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL
-        );
+    if (gScheduledSubscribersChecks.add(computed)) {
+        gScheduledSubscribersChecksQueue.push(computed);
+        if (!gScheduledSubscribersCheckTimeout) {
+            gScheduledSubscribersCheckTimeout = setTimeout(
+                runScheduledSubscribersChecks,
+                SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL
+            );
+        }
     }
 }
 
 export function runScheduledSubscribersChecks() {
-    gScheduledSubscribersChecks.forEach((computed) => {
-        // delete computed first because it might be reintroduced
-        // into the set later in the iteration by `_checkSubscribers` call
-        // it's safe to delete and add items into Set while iterating
-        gScheduledSubscribersChecks.delete(computed);
+    let computed;
+    while ((computed = gScheduledSubscribersChecksQueue.pop())) {
+        gScheduledSubscribersChecks.remove(computed);
         computed._checkSubscribers();
-    });
+    }
+    gScheduledSubscribersCheckTimeout = null;
 }
 
 export function scheduleStateActualization(computed) {

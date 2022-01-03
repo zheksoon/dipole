@@ -8,10 +8,11 @@ import {
     trackComputedContext,
     notifySubscribers,
 } from "./common";
+import { HashSet } from "../data-structures/hash-set";
 
 export class Observable {
     constructor(value, options) {
-        this._subscribers = new Set();
+        this._subscribers = new HashSet();
         this._value = value;
         this._checkValueFn = getCheckValueFn(options);
     }
@@ -38,7 +39,7 @@ export class Observable {
     }
 
     notify() {
-        notifySubscribers(this, states.DIRTY);
+        notifySubscribers(this, states.DIRTY, true);
 
         if (glob.gTransactionDepth === 0) {
             endTransaction();
@@ -46,7 +47,7 @@ export class Observable {
     }
 
     _removeSubscriber(subscriber) {
-        this._subscribers.delete(subscriber);
+        this._subscribers.remove(subscriber);
     }
 
     _actualizeState() {
