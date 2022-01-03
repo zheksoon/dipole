@@ -47,6 +47,7 @@ export function runScheduledSubscribersChecks() {
         gScheduledSubscribersChecks.delete(computed);
         computed._checkSubscribers();
     });
+    gScheduledSubscribersCheckTimeout = null;
 }
 
 export function scheduleStateActualization(computed) {
