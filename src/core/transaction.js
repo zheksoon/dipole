@@ -4,6 +4,7 @@ import {
     runScheduledReactions,
     hasScheduledStateActualizations,
     hasScheduledReactions,
+    gConfig,
 } from "./globals";
 
 // Transaction (TX)
@@ -63,9 +64,23 @@ export function action(fn) {
     };
 }
 
+let isReactionRunnerScheduled = false;
+
 export function endTransaction() {
-    while (hasScheduledStateActualizations() || hasScheduledReactions()) {
+    if (!isReactionRunnerScheduled && shouldRunReactionLoop()) {
+        isReactionRunnerScheduled = true;
+        gConfig.reactionScheduler(reactionRunner);
+    }
+}
+
+function shouldRunReactionLoop() {
+    return hasScheduledReactions() || hasScheduledStateActualizations();
+}
+
+function reactionRunner() {
+    while (shouldRunReactionLoop()) {
         runScheduledStateActualizations();
         runScheduledReactions();
     }
+    isReactionRunnerScheduled = false;
 }

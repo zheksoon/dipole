@@ -10,6 +10,16 @@ export const glob = {
     gTransactionDepth: 0,
 };
 
+export const gConfig = {
+    reactionScheduler: (runner) => runner(),
+};
+
+export function configure(config) {
+    if (config.reactionScheduler) {
+        gConfig.reactionScheduler = config.reactionScheduler;
+    }
+}
+
 // Work queues functions
 
 export function scheduleReaction(reaction) {

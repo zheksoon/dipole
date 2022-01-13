@@ -1,4 +1,10 @@
 declare module "dipole" {
+    interface IConfig {
+        reactionScheduler?: (runner: () => void) => void;
+    }
+
+    export function configure(config: IConfig): void;
+
     export interface IObservableOptions<T> {
         checkValue?: (prevValue: T, nextValue: T) => boolean;
     }
