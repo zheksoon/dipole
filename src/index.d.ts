@@ -1,6 +1,7 @@
 declare module "dipole" {
     interface IConfig {
         reactionScheduler?: (runner: () => void) => void;
+        subscribersCheckInterval?: number;
     }
 
     export function configure(config: IConfig): void;
@@ -11,6 +12,7 @@ declare module "dipole" {
 
     export interface IComputedOptions<T> {
         checkValue?: (prevValue: T, nextValue: T) => boolean;
+        keepAlive?: boolean;
     }
 
     export interface IGettable<T> {

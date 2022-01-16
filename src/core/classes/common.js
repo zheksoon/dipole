@@ -47,13 +47,3 @@ export function notifySubscribers(self, subscribersState) {
         subscriber._notify(subscribersState, self);
     });
 }
-
-export function getCheckValueFn(options) {
-    if (options && typeof options === "object") {
-        const checkValueFn = options.checkValue;
-        if (typeof checkValueFn === "function") {
-            return checkValueFn;
-        }
-    }
-    return null;
-}

@@ -12,11 +12,15 @@ export const glob = {
 
 export const gConfig = {
     reactionScheduler: (runner) => runner(),
+    subscribersCheckInterval: SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL,
 };
 
 export function configure(config) {
     if (config.reactionScheduler) {
         gConfig.reactionScheduler = config.reactionScheduler;
+    }
+    if (config.subscribersCheckInterval) {
+        gConfig.subscribersCheckInterval = config.subscribersCheckInterval;
     }
 }
 
@@ -44,7 +48,7 @@ export function scheduleSubscribersCheck(computed) {
     if (!gScheduledSubscribersCheckTimeout) {
         gScheduledSubscribersCheckTimeout = setTimeout(
             runScheduledSubscribersChecks,
-            SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL
+            gConfig.subscribersCheckInterval
         );
     }
 }
@@ -55,7 +59,10 @@ export function runScheduledSubscribersChecks() {
         // into the set later in the iteration by `_checkSubscribers` call
         // it's safe to delete and add items into Set while iterating
         gScheduledSubscribersChecks.delete(computed);
-        computed._checkSubscribers();
+
+        if (computed._subscribers.size === 0) {
+            computed.destroy();
+        }
     });
     gScheduledSubscribersCheckTimeout = null;
 }
