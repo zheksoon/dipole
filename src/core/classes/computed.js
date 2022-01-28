@@ -4,13 +4,28 @@ import { glob, scheduleSubscribersCheck } from "../globals";
 import { HashSet } from "../data-structures/hash-set";
 import { randomInt } from "../utils/random";
 import {
-    getCheckValueFn,
     checkSpecialContexts,
     trackComputedContext,
     addMaybeDirtySubscription,
     removeSubscriptions,
     notifySubscribers,
 } from "./common";
+
+function getComputedOptions(options) {
+    const defaultOptions = {
+        checkValueFn: null,
+        keepAlive: false,
+    };
+
+    if (options && typeof options === "object") {
+        if (options.checkValue && typeof options.checkValue === "function") {
+            defaultOptions.checkValueFn = options.checkValue;
+        }
+        defaultOptions.keepAlive = !!options.keepAlive;
+    }
+
+    return defaultOptions;
+}
 
 function actualizeState(self) {
     const actualizedAndNotNotified = (subscription) => {
@@ -31,7 +46,7 @@ export class Computed {
         this._hash = randomInt();
         this._subscribers = new HashSet();
         this._value = undefined;
-        this._checkValueFn = getCheckValueFn(options);
+        this._options = getComputedOptions(options);
         this._state = states.NOT_INITIALIZED;
         this._computer = computer;
         this._subscriptions = [];
@@ -46,6 +61,10 @@ export class Computed {
         if (!checkSpecialContexts(this)) {
             this._actualizeState();
             trackComputedContext(this);
+
+            if (glob.gComputedContext === null) {
+                this._checkSubscribers();
+            }
         }
 
         return this._value;
@@ -54,6 +73,7 @@ export class Computed {
     destroy() {
         removeSubscriptions(this);
         this._state = states.NOT_INITIALIZED;
+        this._value = undefined;
     }
 
     _actualizeState() {
@@ -70,8 +90,8 @@ export class Computed {
         const stateBefore = this._state;
         const value = this._recomputeValue();
 
-        if (this._checkValueFn !== null && stateBefore !== states.NOT_INITIALIZED) {
-            const isSameValue = untracked(() => this._checkValueFn(this._value, value));
+        if (this._options.checkValueFn !== null && stateBefore !== states.NOT_INITIALIZED) {
+            const isSameValue = untracked(() => this._options.checkValueFn(this._value, value));
 
             if (isSameValue) return;
 
@@ -110,7 +130,7 @@ export class Computed {
             return;
         }
 
-        if (this._checkValueFn !== null) {
+        if (this._options.checkValueFn !== null) {
             if (this._state === states.CLEAN) {
                 notifySubscribers(this, states.MAYBE_DIRTY, false);
             }
@@ -129,15 +149,12 @@ export class Computed {
 
     _removeSubscriber(subscriber) {
         this._subscribers.remove(subscriber);
-
-        if (this._subscribers.size() === 0) {
-            scheduleSubscribersCheck(this);
-        }
+        this._checkSubscribers();
     }
 
     _checkSubscribers() {
-        if (this._subscribers.size() === 0) {
-            this.destroy();
+        if (this._subscribers.size() === 0 && !this._options.keepAlive) {
+            scheduleSubscribersCheck(this);
         }
     }
 }

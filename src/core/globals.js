@@ -12,6 +12,20 @@ export const glob = {
     gTransactionDepth: 0,
 };
 
+export const gConfig = {
+    reactionScheduler: (runner) => runner(),
+    subscribersCheckInterval: SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL,
+};
+
+export function configure(config) {
+    if (config.reactionScheduler) {
+        gConfig.reactionScheduler = config.reactionScheduler;
+    }
+    if (config.subscribersCheckInterval) {
+        gConfig.subscribersCheckInterval = config.subscribersCheckInterval;
+    }
+}
+
 // Work queues functions
 
 export function scheduleReaction(reaction) {
@@ -37,7 +51,7 @@ export function scheduleSubscribersCheck(computed) {
         if (!gScheduledSubscribersCheckTimeout) {
             gScheduledSubscribersCheckTimeout = setTimeout(
                 runScheduledSubscribersChecks,
-                SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL
+                gConfig.subscribersCheckInterval
             );
         }
     }
@@ -47,7 +61,10 @@ export function runScheduledSubscribersChecks() {
     let computed;
     while ((computed = gScheduledSubscribersChecksQueue.pop())) {
         gScheduledSubscribersChecks.remove(computed);
-        computed._checkSubscribers();
+        
+        if (computed._subscribers.size() === 0) {
+            computed.destroy();
+        }
     }
     gScheduledSubscribersCheckTimeout = null;
 }

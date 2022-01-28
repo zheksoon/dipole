@@ -1,11 +1,10 @@
 export const states = {
     NOT_INITIALIZED: 0,
-    NOTIFYING: 1,
-    COMPUTING: 2,
-    CLEAN: 3,
-    MAYBE_DIRTY: 4,
-    DIRTY: 5,
-    DESTROYED_BY_PARENT: 6,
+    COMPUTING: 1,
+    CLEAN: 2,
+    MAYBE_DIRTY: 3,
+    DIRTY: 4,
+    DESTROYED_BY_PARENT: 5,
 };
 
 export const SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL = 1000;

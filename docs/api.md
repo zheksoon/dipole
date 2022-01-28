@@ -42,6 +42,7 @@ Notify dependent `Computed`/`Reaction` about a change in underlying `Observable`
 ```ts
 interface IComputedOptions<T> {
     checkValue?: (prevValue: T, nextValue: T) => boolean;
+    keepAlive?: boolean;
 }
 
 new Computed<T>(computer: () => T, options?: IComputedOptions<T>)
@@ -50,6 +51,8 @@ computed<T>(computer: () => T, options?: IComputedOptions<T>)
 Create a `Computed` instance with `computer` function used for computed value calculations. `computer` must be a pure function and not change/notify any observable - only `.get()` calls to other `Observable`/`Computed` values are prohibited. 
 
 `options` object may optionally contain `checkValue` function, which enables complex logic that stops dependant reactions or computed values from running if the value of the computed hasn't changed.
+
+`keepAlive` option prevents the computed value from being destroyed when is looses all subscribers or after being accessed outside of reactive context.
 
 ### .get()
 ```ts
@@ -117,3 +120,59 @@ Returns an observable/computed object hidden under some getter called in the bod
 notify(() => { ...some getter calls on observables... })
 ```
 Calls `.notify()` method on all observables, which getters were executed in body function.
+
+## configure
+
+dipole has global `configure` function that allows to tune some internal behaviour.
+
+```ts
+interface IConfig {
+    reactionScheduler?: (runner: () => void) => void;
+    subscribersCheckInterval?: number;
+}
+
+export function configure(config: IConfig): void;
+```
+
+### reactionScheduler
+
+`reactionScheduler` option allows to customize the way how reaction queue will be runned. The option must be a function that takes one argument (`runner`), and, when called, should somehow run the `runner` function.
+
+Default implementation is equivalent to the following:
+
+```ts
+configure({
+    reactionScheduler: (runner) => runner(),
+})
+```
+
+e.g. runs the `runner` immediately.
+
+For some practical use cases (especially when asyncronous operations are used) microtask runner could be useful:
+
+```ts
+configure({
+    reactionScheduler: (runner) => Promise.resolve().then(runner),
+})
+```
+
+This will allow to skip wrapping observable state changes inside async flow in `utx` functions, allowing cleaner code like this:
+
+```ts
+class UserModel {
+    fetchUsers = action(async () => {
+        this.isLoading = true;
+        try {
+            this.users = await fetch(...).then((res) => res.json());
+        } catch (err) {
+            this.error = err;
+        } finally {
+            this.isLoading = false;
+        }
+    }) 
+}
+```
+
+### subscribersCheckInterval
+
+`subscribersCheckInterval` option is interval in milliseconds for how often computed values that lost all their subscriptions (or never gained them) will be invalidated. Default value is `1000`.
