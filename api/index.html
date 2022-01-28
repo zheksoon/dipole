@@ -139,6 +139,10 @@
                 <li class="third-level"><a href="#makeobservableobject">makeObservable(object)</a></li>
                 <li class="third-level"><a href="#fromgetterthunk">fromGetter(thunk)</a></li>
                 <li class="third-level"><a href="#notifythunk">notify(thunk)</a></li>
+            <li class="second-level"><a href="#configure">configure</a></li>
+                
+                <li class="third-level"><a href="#reactionscheduler">reactionScheduler</a></li>
+                <li class="third-level"><a href="#subscriberscheckinterval">subscribersCheckInterval</a></li>
     </ul>
 </div></div>
         <div class="col-md-9" role="main">
@@ -171,6 +175,7 @@ observable&lt;T&gt;(value: T, options?: IObservableOptions&lt;T&gt;): Observable
 <h3 id="constructor_1">constructor</h3>
 <pre><code class="language-ts">interface IComputedOptions&lt;T&gt; {
     checkValue?: (prevValue: T, nextValue: T) =&gt; boolean;
+    keepAlive?: boolean;
 }
 
 new Computed&lt;T&gt;(computer: () =&gt; T, options?: IComputedOptions&lt;T&gt;)
@@ -178,6 +183,7 @@ computed&lt;T&gt;(computer: () =&gt; T, options?: IComputedOptions&lt;T&gt;)
 </code></pre>
 <p>Create a <code>Computed</code> instance with <code>computer</code> function used for computed value calculations. <code>computer</code> must be a pure function and not change/notify any observable - only <code>.get()</code> calls to other <code>Observable</code>/<code>Computed</code> values are prohibited. </p>
 <p><code>options</code> object may optionally contain <code>checkValue</code> function, which enables complex logic that stops dependant reactions or computed values from running if the value of the computed hasn't changed.</p>
+<p><code>keepAlive</code> option prevents the computed value from being destroyed when is looses all subscribers or after being accessed outside of reactive context.</p>
 <h3 id="get_1">.get()</h3>
 <pre><code class="language-ts">Computed.prototype.get()
 </code></pre>
@@ -221,7 +227,45 @@ reaction(reactor [, context [, manager]])
 <h3 id="notifythunk">notify(thunk)</h3>
 <pre><code class="language-ts">notify(() =&gt; { ...some getter calls on observables... })
 </code></pre>
-<p>Calls <code>.notify()</code> method on all observables, which getters were executed in body function.</p></div>
+<p>Calls <code>.notify()</code> method on all observables, which getters were executed in body function.</p>
+<h2 id="configure">configure</h2>
+<p>dipole has global <code>configure</code> function that allows to tune some internal behaviour.</p>
+<pre><code class="language-ts">interface IConfig {
+    reactionScheduler?: (runner: () =&gt; void) =&gt; void;
+    subscribersCheckInterval?: number;
+}
+
+export function configure(config: IConfig): void;
+</code></pre>
+<h3 id="reactionscheduler">reactionScheduler</h3>
+<p><code>reactionScheduler</code> option allows to customize the way how reaction queue will be runned. The option must be a function that takes one argument (<code>runner</code>), and, when called, should somehow run the <code>runner</code> function.</p>
+<p>Default implementation is equivalent to the following:</p>
+<pre><code class="language-ts">configure({
+    reactionScheduler: (runner) =&gt; runner(),
+})
+</code></pre>
+<p>e.g. runs the <code>runner</code> immediately.</p>
+<p>For some practical use cases (especially when asyncronous operations are used) microtask runner could be useful:</p>
+<pre><code class="language-ts">configure({
+    reactionScheduler: (runner) =&gt; Promise.resolve().then(runner),
+})
+</code></pre>
+<p>This will allow to skip wrapping observable state changes inside async flow in <code>utx</code> functions, allowing cleaner code like this:</p>
+<pre><code class="language-ts">class UserModel {
+    fetchUsers = action(async () =&gt; {
+        this.isLoading = true;
+        try {
+            this.users = await fetch(...).then((res) =&gt; res.json());
+        } catch (err) {
+            this.error = err;
+        } finally {
+            this.isLoading = false;
+        }
+    }) 
+}
+</code></pre>
+<h3 id="subscriberscheckinterval">subscribersCheckInterval</h3>
+<p><code>subscribersCheckInterval</code> option is interval in milliseconds for how often computed values that lost all their subscriptions (or never gained them) will be invalidated. Default value is <code>1000</code>.</p></div>
         
         
     </div>

@@ -129,6 +129,8 @@
                 
             <li class="second-level"><a href="#observable-utilities">Observable utilities</a></li>
                 
+            <li class="second-level"><a href="#extra-value-checked-observables-and-computeds">Extra: value-checked observables and computeds</a></li>
+                
     </ul>
 </div></div>
         <div class="col-md-9" role="main">
@@ -361,7 +363,47 @@ const counter = new Counter()
 </code></pre>
 <p>Only object's own properties <a href="../api/#makeobservableobject">are converted</a>.</p>
 <p>(You may also have noticed that code from <a href="../examples/">Examples</a> section uses <code>observable.prop</code> instead of <code>observable</code> for defining fields - in fact, it's exactly the same function, the only difference is <a href="https://github.com/zheksoon/dipole/blob/master/src/index.d.ts#L30">its Typescript definition</a>: type of <code>observable.prop(T)</code> is <code>T</code>, while type of <code>observable(T)</code> is <code>Observable&lt;T&gt;</code>)</p>
-<p>There are also few helper functions designed to work with <code>makeObservable</code>: <a href="../api/#fromgetterthunk">fromGetter</a> and <a href="../api/#notifythunk">notify</a>.</p></div>
+<p>There are also few helper functions designed to work with <code>makeObservable</code>: <a href="../api/#fromgetterthunk">fromGetter</a> and <a href="../api/#notifythunk">notify</a>.</p>
+<h2 id="extra-value-checked-observables-and-computeds">Extra: value-checked observables and computeds</h2>
+<p>By default, observables and computeds never touch the values they store, so they can't know if the assigned or computed value has changed. It's convinient for the most cases, but sometimes might lead to unnecessarily reactions or expensive computations you might want to eliminate. </p>
+<p>Observables and computeds receive an second <code>options</code> parameter, which can contain <code>checkValue</code> function, which receives previous and new values and returns a boolean equality result. If the result is <code>true</code>, no further recomputations of dependant computeds or reactions is done. Here's an example:</p>
+<pre><code class="language-js">// simple comparison function
+const checkValue = (prev, next) =&gt; prev === next;
+
+// pass the checkValue function to observable
+const counter = observable(1, { checkValue }); 
+
+// pass the checkValue function to computed
+const absolute = computed(
+    () =&gt; {
+        console.log('computing absolute');
+        return Math.abs(counter.get());
+    },
+    { checkValue }, 
+);
+
+// regular computed without value check
+const doubleAbsolute = computed(() =&gt; {             
+    console.log('computing double')
+    return absolute.get() * 2;
+});
+
+const printer = reaction(() =&gt; {
+    console.log('result is', doubleAbsolute.get());
+});
+
+// first run, prints 'computing absolute' and 'computing double'
+printer.run();  
+
+// checkValue is called for observable, no computeds are recalculated, reaction doesn't run
+counter.set(1); 
+
+// prints 'computing absolute' and calls checkValue for computed, 
+// doubleAbsolute computed is not recalculated and reaction doesn't run
+counter.set(-1);
+</code></pre>
+<p>While the feature seems like a "silver bullet" for reducing amount of computation in your application, it comes with a price. Because dipole is guaratied to be glitch-free and consistent at every moment of time, there is some quite complicated logic behind the <code>checkValue</code> feature. Internally, dipole does a "virtual" run of every reaction potentially touched by the value-checked computeds change (called internally a "state actualization"), which implements some kind of topological sort of to-be-recomputed values, so the process might be not as lightweight as you could imagine.</p>
+<p>Given the fact, it's better to place value-checked computeds as close to reactions or consumers as possible, or at least benchmark cases with and without <code>checkValue</code> option.</p></div>
         
         
     </div>
