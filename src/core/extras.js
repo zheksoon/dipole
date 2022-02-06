@@ -11,23 +11,23 @@ export function setGetterSpyResult(value) {
 }
 
 export function fromGetter(gettersThunk) {
-    const oldComputedContext = glob.gComputedContext;
-    glob.gComputedContext = gettersSpyContext;
+    const oldSubscriberContext = glob.gSubscriberContext;
+    glob.gSubscriberContext = gettersSpyContext;
     try {
         gettersThunk();
         return gGettersSpyResult;
     } finally {
-        glob.gComputedContext = oldComputedContext;
+        glob.gSubscriberContext = oldSubscriberContext;
         gGettersSpyResult = undefined;
     }
 }
 
 export function notify(gettersThunk) {
-    const oldComputedContext = glob.gComputedContext;
-    glob.gComputedContext = gettersNotifyContext;
+    const oldSubscriberContext = glob.gSubscriberContext;
+    glob.gSubscriberContext = gettersNotifyContext;
     try {
         tx(gettersThunk);
     } finally {
-        glob.gComputedContext = oldComputedContext;
+        glob.gSubscriberContext = oldSubscriberContext;
     }
 }

@@ -6,7 +6,7 @@ let gScheduledSubscribersChecks = new Set();
 let gScheduledSubscribersCheckTimeout = null;
 
 export const glob = {
-    gComputedContext: null,
+    gSubscriberContext: null,
     gTransactionDepth: 0,
 };
 
@@ -78,6 +78,6 @@ export function hasScheduledStateActualizations() {
 export function runScheduledStateActualizations() {
     let computed;
     while ((computed = gScheduledStateActualizations.pop())) {
-        computed._actualizeState();
+        computed._actualizeAndRecompute();
     }
 }

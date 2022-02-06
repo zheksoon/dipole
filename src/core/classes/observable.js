@@ -2,7 +2,7 @@ import { glob } from "../globals";
 import { states } from "../constants";
 import { endTransaction } from "../transaction";
 import { Computed } from "./computed";
-import { checkSpecialContexts, trackComputedContext, notifySubscribers } from "./common";
+import { checkSpecialContexts, trackSubscriberContext, notifySubscribers } from "./common";
 
 function getObservableOptions(options) {
     const defaultOptions = {
@@ -27,13 +27,13 @@ export class Observable {
 
     get() {
         if (!checkSpecialContexts(this)) {
-            trackComputedContext(this);
+            trackSubscriberContext(this);
         }
         return this._value;
     }
 
     set(value) {
-        if (glob.gComputedContext instanceof Computed) {
+        if (glob.gSubscriberContext instanceof Computed) {
             throw new Error("Can't change observable value inside of computed");
         }
 

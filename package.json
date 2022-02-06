@@ -1,6 +1,6 @@
 {
   "name": "dipole",
-  "version": "2.2.9",
+  "version": "2.3.0",
   "description": "dipole - tiny reactive state management that just works",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -56,7 +56,7 @@
         "Reaction"
       ],
       "properties": {
-        "regex": "^(gComputedContext|gTransactionDepth)"
+        "regex": "^(gSubscriberContext|gTransactionDepth)"
       }
     }
   },

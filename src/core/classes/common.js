@@ -1,49 +1,45 @@
 import { glob } from "../globals";
 import { setGetterSpyResult, gettersSpyContext, gettersNotifyContext } from "../extras";
+import { Reaction } from "./reaction";
 
 // Common methods
 
 export function checkSpecialContexts(self) {
-    const { gComputedContext } = glob;
-    if (gComputedContext === gettersSpyContext) {
+    const { gSubscriberContext } = glob;
+
+    if (gSubscriberContext === gettersSpyContext) {
         setGetterSpyResult(self);
         return true;
     }
-    if (gComputedContext === gettersNotifyContext) {
+
+    if (gSubscriberContext === gettersNotifyContext) {
         self.notify();
         return true;
     }
+
     return false;
 }
 
-export function trackComputedContext(self) {
-    const { gComputedContext } = glob;
-    if (gComputedContext !== null) {
-        if (!self._subscribers.has(gComputedContext)) {
-            self._subscribers.add(gComputedContext);
-            gComputedContext._subscribeTo(self);
-        }
+export function trackSubscriberContext(self) {
+    const subscriber = glob.gSubscriberContext;
+
+    if (subscriber === null) {
+        return;
+    }
+
+    if (subscriber instanceof Reaction && !subscriber._options.autocommitSubscriptions) {
+        subscriber._subscribeTo(self);
+        return;
+    }
+
+    if (!self._subscribers.has(subscriber)) {
+        self._subscribers.add(subscriber);
+        subscriber._subscribeTo(self);
     }
 }
 
-export function addMaybeDirtySubscription(self, notifier) {
-    (self._maybeDirtySubscriptions || (self._maybeDirtySubscriptions = [])).push(notifier);
-}
-
-export function removeSubscriptions(self) {
-    self._subscriptions.forEach((subscription) => {
-        subscription._removeSubscriber(self);
-    });
-
-    self._subscriptions = [];
-
-    if (self._maybeDirtySubscriptions) {
-        self._maybeDirtySubscriptions = null;
-    }
-}
-
-export function notifySubscribers(self, subscribersState) {
+export function notifySubscribers(self, state) {
     self._subscribers.forEach((subscriber) => {
-        subscriber._notify(subscribersState, self);
+        subscriber._notify(state, self);
     });
 }

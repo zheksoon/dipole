@@ -21,8 +21,8 @@ export function tx(thunk) {
 
 // Untracked Transaction (UTX)
 export function utx(fn) {
-    const oldComputedContext = glob.gComputedContext;
-    glob.gComputedContext = null;
+    const oldSubscriberContext = glob.gSubscriberContext;
+    glob.gSubscriberContext = null;
 
     ++glob.gTransactionDepth;
     try {
@@ -31,17 +31,17 @@ export function utx(fn) {
         if (--glob.gTransactionDepth === 0) {
             endTransaction();
         }
-        glob.gComputedContext = oldComputedContext;
+        glob.gSubscriberContext = oldSubscriberContext;
     }
 }
 
 export function untracked(fn) {
-    const oldComputedContext = glob.gComputedContext;
-    glob.gComputedContext = null;
+    const oldSubscriberContext = glob.gSubscriberContext;
+    glob.gSubscriberContext = null;
     try {
         return fn();
     } finally {
-        glob.gComputedContext = oldComputedContext;
+        glob.gSubscriberContext = oldSubscriberContext;
     }
 }
 
@@ -49,8 +49,8 @@ export function action(fn) {
     // Do not DRY with `utx()` because of extra work for applying `this` and `arguments` to `fn`
     return function () {
         // actions should not introduce new dependencies when obsesrvables are observed
-        const oldComputedContext = glob.gComputedContext;
-        glob.gComputedContext = null;
+        const oldSubscriberContext = glob.gSubscriberContext;
+        glob.gSubscriberContext = null;
 
         ++glob.gTransactionDepth;
         try {
@@ -59,19 +59,12 @@ export function action(fn) {
             if (--glob.gTransactionDepth === 0) {
                 endTransaction();
             }
-            glob.gComputedContext = oldComputedContext;
+            glob.gSubscriberContext = oldSubscriberContext;
         }
     };
 }
 
 let isReactionRunnerScheduled = false;
-
-export function endTransaction() {
-    if (!isReactionRunnerScheduled && shouldRunReactionLoop()) {
-        isReactionRunnerScheduled = true;
-        gConfig.reactionScheduler(reactionRunner);
-    }
-}
 
 function shouldRunReactionLoop() {
     return hasScheduledReactions() || hasScheduledStateActualizations();
@@ -83,4 +76,11 @@ function reactionRunner() {
         runScheduledReactions();
     }
     isReactionRunnerScheduled = false;
+}
+
+export function endTransaction() {
+    if (!isReactionRunnerScheduled && shouldRunReactionLoop()) {
+        isReactionRunnerScheduled = true;
+        gConfig.reactionScheduler(reactionRunner);
+    }
 }

@@ -1,13 +1,7 @@
 import { states } from "../constants";
 import { untracked } from "../transaction";
 import { glob, scheduleSubscribersCheck } from "../globals";
-import {
-    checkSpecialContexts,
-    trackComputedContext,
-    addMaybeDirtySubscription,
-    removeSubscriptions,
-    notifySubscribers,
-} from "./common";
+import { checkSpecialContexts, trackSubscriberContext, notifySubscribers } from "./common";
 
 function getComputedOptions(options) {
     const defaultOptions = {
@@ -23,20 +17,6 @@ function getComputedOptions(options) {
     }
 
     return defaultOptions;
-}
-
-function actualizeState(self) {
-    const actualizedAndNotNotified = (subscription) => {
-        subscription._actualizeState();
-        return self._state === states.MAYBE_DIRTY;
-    };
-
-    if (self._maybeDirtySubscriptions.every(actualizedAndNotNotified)) {
-        // we actualized all subscriptions and nobody notified us, so we are clean
-        self._state = states.CLEAN;
-    }
-
-    self._maybeDirtySubscriptions = null;
 }
 
 export class Computed {
@@ -56,10 +36,10 @@ export class Computed {
         }
 
         if (!checkSpecialContexts(this)) {
-            this._actualizeState();
-            trackComputedContext(this);
+            this._actualizeAndRecompute();
+            trackSubscriberContext(this);
 
-            if (glob.gComputedContext === null) {
+            if (glob.gSubscriberContext === null) {
                 this._checkSubscribers();
             }
         }
@@ -68,19 +48,33 @@ export class Computed {
     }
 
     destroy() {
-        removeSubscriptions(this);
+        this._removeSubscriptions();
         this._state = states.NOT_INITIALIZED;
         this._value = undefined;
     }
 
-    _actualizeState() {
+    _actualizeAndRecompute() {
         if (this._state === states.MAYBE_DIRTY) {
-            actualizeState(this);
+            this._actualizeState();
         }
 
         if (this._state === states.DIRTY || this._state === states.NOT_INITIALIZED) {
             this._recomputeAndCheckValue();
         }
+    }
+
+    _actualizeState() {
+        const actualizedAndNotNotified = (subscription) => {
+            subscription._actualizeAndRecompute();
+            return this._state === states.MAYBE_DIRTY;
+        };
+
+        if (this._maybeDirtySubscriptions.every(actualizedAndNotNotified)) {
+            // we actualized all subscriptions and nobody notified us, so we are clean
+            this._state = states.CLEAN;
+        }
+
+        this._maybeDirtySubscriptions = null;
     }
 
     _recomputeAndCheckValue() {
@@ -100,8 +94,8 @@ export class Computed {
     }
 
     _recomputeValue() {
-        const oldComputedContext = glob.gComputedContext;
-        glob.gComputedContext = this;
+        const oldSubscriberContext = glob.gSubscriberContext;
+        glob.gSubscriberContext = this;
 
         const prevState = this._state;
         this._state = states.COMPUTING;
@@ -110,11 +104,11 @@ export class Computed {
             this._state = states.CLEAN;
             return value;
         } catch (e) {
-            removeSubscriptions(this);
+            this._removeSubscriptions();
             this._state = prevState;
             throw e;
         } finally {
-            glob.gComputedContext = oldComputedContext;
+            glob.gSubscriberContext = oldSubscriberContext;
         }
     }
 
@@ -138,10 +132,19 @@ export class Computed {
         this._state = state;
 
         if (state === states.MAYBE_DIRTY) {
-            addMaybeDirtySubscription(this, notifier);
+            (this._maybeDirtySubscriptions || (this._maybeDirtySubscriptions = [])).push(notifier);
         } else if (state === states.DIRTY) {
-            removeSubscriptions(this);
+            this._removeSubscriptions();
         }
+    }
+
+    _removeSubscriptions() {
+        this._subscriptions.forEach((subscription) => {
+            subscription._removeSubscriber(this);
+        });
+
+        this._subscriptions = [];
+        this._maybeDirtySubscriptions = null;
     }
 
     _removeSubscriber(subscriber) {
