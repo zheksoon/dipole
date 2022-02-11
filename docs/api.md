@@ -64,26 +64,45 @@ Get result of `computer` function invocation. The result is computed at the mome
 
 ### constructor
 ```ts
-new Reaction(reactor [, context [, manager]])
-reaction(reactor [, context [, manager]])
+new Reaction(reactor [, context [, manager, [, options]]])
+reaction(reactor [, context [, manager, [, options]]])
 ```
 Creates a `Reaction` instance with `reactor` function in its core, with optional `context` and `manager` arguments. `context` is `this` argument for `reactor` param, defaults to `undefined`. `manager` is a function that should somehow schedule/manage invocation of `.run()` method of the object on reaction's dependency change. See [dipole-react](https://github.com/zheksoon/dipole-react) bindings for example of `manager` usage. 
 
-### .run(...args)
+The `options` argument has following definition: 
+
 ```ts
-Reaction.prototype.run(...arguments)
+interface IReactionOptions {
+    autocommitSubscriptions?: boolean;
+}
 ```
-Runs reaction's `reactor` function with `this` set to `context` and passes all method's arguments to it. Reaction body runs in implicit transaction, so there is no need to use transactions inside it.
+
+Options description:
+
+* `autocommitSubscriptions?: boolean` (default value - `true`): when `false`, forces `Reaction` instance not to subscribe to observable and computed values automatically, only after manually calling [commitSubscriptions](#commitSubscriptions) method. 
+
+    This option was added to support SSR, Concurrent and Strict Modes in `dipole-react` connector, when rendered component can be thrown away. Without the option it would introduce a memory leak. Please see [dipole-react](https://github.com/zheksoon/dipole-react) source code for more details.
+
+### .run(...args)
+
+Runs reaction's `reactor` function with `this` set to `context` and passes all method's arguments to it. Reaction body runs in implicit transaction, so there is no need to use transactions inside of it.
 
 ### .destroy()
-```ts
-Reaction.prototype.destroy()
-```
+
 Destroys reaction, so it doesn't react to any changes anymore before next manual invocation of `.run()` method.
+
+### .commitSubscriptions()
+
+The method has effect only in case `autocommitSubscriptions` option was set to `false`. 
+It make the reaction instance subscribe to all its dependencies that were collected during the last `.run()` call.
+
+### .setOptions(options)
+
+The method allows to set reaction options on the fly. Currently only `autocommitSubscriptions` is supported. It's better not to call the method inside of `.run()`,  so reaction's subscriptions will be consistent.
 
 ## Actions and transactions
 
-### action(...args)
+### action
 ```ts
 action((...args) => { ...action body... })
 ```
