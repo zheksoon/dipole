@@ -1,21 +1,42 @@
-import { SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL, states } from "./constants";
+import { AnyComputed, AnyReaction, AnySubscriber } from "./classes/types";
+import { SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL } from "./constants";
+import { SpecialContext } from "./extras";
 
-let gScheduledReactions = [];
-let gScheduledStateActualizations = [];
-let gScheduledSubscribersChecks = new Set();
-let gScheduledSubscribersCheckTimeout = null;
+let gScheduledReactions: AnyReaction[] = [];
+let gScheduledStateActualizations: AnyComputed[] = [];
+let gScheduledSubscribersChecks: Set<AnyComputed> = new Set();
+let gScheduledSubscribersCheckTimeout: ReturnType<typeof setTimeout> | null = null;
 
-export const glob = {
+type GlobVars = {
+    gSubscriberContext:
+        | SpecialContext<"GettersSpyContext">
+        | SpecialContext<"NotifyContext">
+        | AnySubscriber
+        | null;
+    gTransactionDepth: number;
+};
+
+type GlobConfig = {
+    reactionScheduler: (runner: () => void) => void;
+    subscribersCheckInterval: number;
+};
+
+interface IConfig {
+    reactionScheduler?: (runner: () => void) => void;
+    subscribersCheckInterval?: number;
+}
+
+export const glob: GlobVars = {
     gSubscriberContext: null,
     gTransactionDepth: 0,
 };
 
-export const gConfig = {
-    reactionScheduler: (runner) => runner(),
+export const gConfig: GlobConfig = {
+    reactionScheduler: (runner: () => void) => runner(),
     subscribersCheckInterval: SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL,
 };
 
-export function configure(config) {
+export function configure(config: IConfig): void {
     if (config.reactionScheduler) {
         gConfig.reactionScheduler = config.reactionScheduler;
     }
@@ -26,7 +47,7 @@ export function configure(config) {
 
 // Work queues functions
 
-export function scheduleReaction(reaction) {
+export function scheduleReaction(reaction: AnyReaction) {
     gScheduledReactions.push(reaction);
 }
 
@@ -37,13 +58,13 @@ export function hasScheduledReactions() {
 export function runScheduledReactions() {
     let reaction;
     while ((reaction = gScheduledReactions.pop())) {
-        if (reaction._state === states.DIRTY) {
+        if (reaction._shouldRun()) {
             reaction.runManager();
         }
     }
 }
 
-export function scheduleSubscribersCheck(computed) {
+export function scheduleSubscribersCheck(computed: AnyComputed) {
     gScheduledSubscribersChecks.add(computed);
     if (!gScheduledSubscribersCheckTimeout) {
         gScheduledSubscribersCheckTimeout = setTimeout(
@@ -60,14 +81,14 @@ export function runScheduledSubscribersChecks() {
         // it's safe to delete and add items into Set while iterating
         gScheduledSubscribersChecks.delete(computed);
 
-        if (computed._subscribers.size === 0) {
+        if (computed._hasNoSubscribers()) {
             computed.destroy();
         }
     });
     gScheduledSubscribersCheckTimeout = null;
 }
 
-export function scheduleStateActualization(computed) {
+export function scheduleStateActualization(computed: AnyComputed) {
     gScheduledStateActualizations.push(computed);
 }
 

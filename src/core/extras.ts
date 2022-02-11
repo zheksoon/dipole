@@ -1,16 +1,21 @@
+import { IComputed, IObservable } from "./classes/types";
 import { glob } from "./globals";
 import { tx } from "./transaction";
 
-let gGettersSpyResult = undefined;
+type GettersSpyResult = IObservable<unknown> | IComputed<unknown>;
 
-export const gettersSpyContext = {};
-export const gettersNotifyContext = {};
+export type SpecialContext<Type> = object & { _type: Type }; 
 
-export function setGetterSpyResult(value) {
+let gGettersSpyResult: undefined | GettersSpyResult = undefined;
+
+export const gettersSpyContext = {} as SpecialContext<"GettersSpyContext">;
+export const gettersNotifyContext = {} as SpecialContext<"NotifyContext">;
+
+export function setGetterSpyResult(value: GettersSpyResult) {
     gGettersSpyResult = value;
 }
 
-export function fromGetter(gettersThunk) {
+export function fromGetter(gettersThunk: () => any): undefined | GettersSpyResult {
     const oldSubscriberContext = glob.gSubscriberContext;
     glob.gSubscriberContext = gettersSpyContext;
     try {
@@ -22,7 +27,7 @@ export function fromGetter(gettersThunk) {
     }
 }
 
-export function notify(gettersThunk) {
+export function notify(gettersThunk: () => any) {
     const oldSubscriberContext = glob.gSubscriberContext;
     glob.gSubscriberContext = gettersNotifyContext;
     try {

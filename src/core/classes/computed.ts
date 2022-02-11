@@ -1,10 +1,31 @@
 import { states } from "../constants";
 import { untracked } from "../transaction";
 import { glob, scheduleSubscribersCheck } from "../globals";
-import { checkSpecialContexts, trackSubscriberContext, notifySubscribers } from "./common";
+import { checkSpecialContexts, trackSubscriberContext } from "./common";
+import {
+    AnyComputed,
+    AnySubscriber,
+    AnySubscription,
+    IComputed,
+    IComputedImpl,
+    IComputedOptions,
+    SubscriberState,
+} from "./types";
 
-function getComputedOptions(options) {
-    const defaultOptions = {
+type Options<T> = {
+    checkValueFn: null | ((prevValue: T, nextValue: T) => boolean);
+    keepAlive: boolean;
+};
+
+type ComputedState =
+    | typeof states.NOT_INITIALIZED
+    | typeof states.CLEAN
+    | typeof states.COMPUTING
+    | typeof states.MAYBE_DIRTY
+    | typeof states.DIRTY;
+
+function getComputedOptions<T>(options?: IComputedOptions<T>): Options<T> {
+    const defaultOptions: Options<T> = {
         checkValueFn: null,
         keepAlive: false,
     };
@@ -19,8 +40,16 @@ function getComputedOptions(options) {
     return defaultOptions;
 }
 
-export class Computed {
-    constructor(computer, options) {
+export class Computed<T> implements IComputedImpl<T> {
+    private _subscribers: Set<AnySubscriber>;
+    private _value: undefined | T;
+    private _options: Options<T>;
+    private _state: ComputedState;
+    private _computer: () => T;
+    private _subscriptions: AnySubscription[];
+    private _maybeDirtySubscriptions: null | AnyComputed[];
+
+    constructor(computer: () => T, options?: IComputedOptions<T>) {
         this._subscribers = new Set();
         this._value = undefined;
         this._options = getComputedOptions(options);
@@ -30,7 +59,7 @@ export class Computed {
         this._maybeDirtySubscriptions = null;
     }
 
-    get() {
+    get(): T {
         if (this._state === states.COMPUTING) {
             throw new Error("Trying to get computed value while in computing state");
         }
@@ -44,16 +73,16 @@ export class Computed {
             }
         }
 
-        return this._value;
+        return this._value!;
     }
 
-    destroy() {
+    destroy(): void {
         this._removeSubscriptions();
         this._state = states.NOT_INITIALIZED;
         this._value = undefined;
     }
 
-    _actualizeAndRecompute() {
+    _actualizeAndRecompute(): void {
         if (this._state === states.MAYBE_DIRTY) {
             this._actualizeState();
         }
@@ -63,8 +92,13 @@ export class Computed {
         }
     }
 
-    _actualizeState() {
-        const actualizedAndNotNotified = (subscription) => {
+    _actualizeState(): void {
+        if (!this._maybeDirtySubscriptions) {
+            this._state = states.CLEAN;
+            return;
+        }
+
+        const actualizedAndNotNotified = (subscription: AnyComputed) => {
             subscription._actualizeAndRecompute();
             return this._state === states.MAYBE_DIRTY;
         };
@@ -77,23 +111,24 @@ export class Computed {
         this._maybeDirtySubscriptions = null;
     }
 
-    _recomputeAndCheckValue() {
+    _recomputeAndCheckValue(): void {
         const stateBefore = this._state;
         const value = this._recomputeValue();
+        const { checkValueFn } = this._options;
 
-        if (this._options.checkValueFn !== null && stateBefore !== states.NOT_INITIALIZED) {
-            const isSameValue = untracked(() => this._options.checkValueFn(this._value, value));
+        if (checkValueFn !== null && stateBefore !== states.NOT_INITIALIZED) {
+            const isSameValue = untracked(() => checkValueFn(this._value!, value));
 
             if (isSameValue) return;
 
             // the value has changed - do the delayed notification of all subscribers
-            notifySubscribers(this, states.DIRTY);
+            this._notifySubscribers(states.DIRTY);
         }
 
         this._value = value;
     }
 
-    _recomputeValue() {
+    _recomputeValue(): T {
         const oldSubscriberContext = glob.gSubscriberContext;
         glob.gSubscriberContext = this;
 
@@ -112,33 +147,44 @@ export class Computed {
         }
     }
 
-    _subscribeTo(subscription) {
-        this._subscriptions.push(subscription);
+    _subscribeTo(subscription: AnySubscription): void {
+        if (subscription._addSubscriber(this)) {
+            this._subscriptions.push(subscription);
+        }
     }
 
-    _notify(state, notifier) {
+    _notify(state: SubscriberState, notifier: AnySubscription): void {
         if (this._state >= state) {
             return;
         }
 
         if (this._options.checkValueFn !== null) {
             if (this._state === states.CLEAN) {
-                notifySubscribers(this, states.MAYBE_DIRTY);
+                this._notifySubscribers(states.MAYBE_DIRTY);
             }
         } else {
-            notifySubscribers(this, state);
+            this._notifySubscribers(state);
         }
 
         this._state = state;
 
         if (state === states.MAYBE_DIRTY) {
-            (this._maybeDirtySubscriptions || (this._maybeDirtySubscriptions = [])).push(notifier);
+            (this._maybeDirtySubscriptions || (this._maybeDirtySubscriptions = [])).push(
+                // only computeds may notify us as MAYBE_DIRTY
+                notifier as AnyComputed
+            );
         } else if (state === states.DIRTY) {
             this._removeSubscriptions();
         }
     }
 
-    _removeSubscriptions() {
+    _notifySubscribers(state: SubscriberState) {
+        this._subscribers.forEach((subscriber) => {
+            subscriber._notify(state, this);
+        });
+    }
+
+    _removeSubscriptions(): void {
         this._subscriptions.forEach((subscription) => {
             subscription._removeSubscriber(this);
         });
@@ -147,22 +193,35 @@ export class Computed {
         this._maybeDirtySubscriptions = null;
     }
 
-    _removeSubscriber(subscriber) {
+    _addSubscriber(subscriber: AnySubscriber): boolean {
+        if (!this._subscribers.has(subscriber)) {
+            this._subscribers.add(subscriber);
+            return true;
+        }
+
+        return false;
+    }
+
+    _removeSubscriber(subscriber: AnySubscriber): void {
         this._subscribers.delete(subscriber);
         this._checkSubscribers();
     }
 
-    _checkSubscribers() {
-        if (this._subscribers.size === 0 && !this._options.keepAlive) {
+    _hasNoSubscribers(): boolean {
+        return this._subscribers.size === 0;
+    }
+
+    _checkSubscribers(): void {
+        if (this._hasNoSubscribers() && !this._options.keepAlive) {
             scheduleSubscribersCheck(this);
         }
     }
 }
 
-export function computed(computer, options) {
-    return new Computed(computer, options);
+export function computed<T>(computer: () => T, options: IComputedOptions<T>): IComputed<T> {
+    return new Computed<T>(computer, options);
 }
 
-// declare shorthands for observable props
-// the difference is defined in dipole.d.ts
-computed.prop = computed;
+computed.prop = function computedProp<T>(computer: () => T, options: IComputedOptions<T>): T {
+    return new Computed<T>(computer, options) as unknown as T;
+};

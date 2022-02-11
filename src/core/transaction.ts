@@ -8,7 +8,7 @@ import {
 } from "./globals";
 
 // Transaction (TX)
-export function tx(thunk) {
+export function tx(thunk: () => any): void {
     ++glob.gTransactionDepth;
     try {
         thunk();
@@ -20,7 +20,7 @@ export function tx(thunk) {
 }
 
 // Untracked Transaction (UTX)
-export function utx(fn) {
+export function utx<T>(fn: () => T): T {
     const oldSubscriberContext = glob.gSubscriberContext;
     glob.gSubscriberContext = null;
 
@@ -35,7 +35,7 @@ export function utx(fn) {
     }
 }
 
-export function untracked(fn) {
+export function untracked<T>(fn: () => T): T {
     const oldSubscriberContext = glob.gSubscriberContext;
     glob.gSubscriberContext = null;
     try {
@@ -45,7 +45,9 @@ export function untracked(fn) {
     }
 }
 
-export function action(fn) {
+export function action<Args extends any[], Result, This>(
+    fn: (this: This, ...args: Args) => Result
+): (this: This, ...args: Args) => Result {
     // Do not DRY with `utx()` because of extra work for applying `this` and `arguments` to `fn`
     return function () {
         // actions should not introduce new dependencies when obsesrvables are observed
@@ -54,7 +56,7 @@ export function action(fn) {
 
         ++glob.gTransactionDepth;
         try {
-            return fn.apply(this, arguments);
+            return fn.apply(this, arguments as unknown as Args);
         } finally {
             if (--glob.gTransactionDepth === 0) {
                 endTransaction();

@@ -1,8 +1,22 @@
 import { glob, scheduleStateActualization, scheduleReaction } from "../globals";
 import { states } from "../constants";
 import { endTransaction } from "../transaction";
+import {
+    AnyComputed,
+    AnyReaction,
+    AnySubscription,
+    IReactionImpl,
+    IReactionOptions,
+    SubscriberState,
+} from "./types";
 
-function getReactionOptions(options) {
+type Options = {
+    autocommitSubscriptions: boolean;
+};
+
+type ReactionState = typeof states.CLEAN | typeof states.DIRTY | typeof states.DESTROYED_BY_PARENT;
+
+function getReactionOptions(options?: IReactionOptions): Options {
     const defaultOptions = {
         autocommitSubscriptions: true,
     };
@@ -16,8 +30,23 @@ function getReactionOptions(options) {
     return defaultOptions;
 }
 
-export class Reaction {
-    constructor(reaction, context, manager, options) {
+export class Reaction<Ctx, Params extends any[], Result>
+    implements IReactionImpl<Ctx, Params, Result>
+{
+    private _reaction: (this: Ctx, ...args: Params) => Result;
+    private _context: Ctx | null;
+    private _manager: (() => void) | undefined;
+    private _state: ReactionState;
+    private _subscriptions: AnySubscription[];
+    private _children: null | AnyReaction[];
+    private _options: Options;
+
+    constructor(
+        reaction: (this: Ctx, ...args: Params) => Result,
+        context?: Ctx,
+        manager?: () => void,
+        options?: IReactionOptions
+    ) {
         this._reaction = reaction;
         this._context = context || null;
         this._manager = manager;
@@ -32,30 +61,30 @@ export class Reaction {
         }
     }
 
-    _addChild(child) {
+    _addChild(child: AnyReaction): void {
         (this._children || (this._children = [])).push(child);
     }
 
-    _destroyChildren() {
+    _destroyChildren(): void {
         if (this._children !== null) {
             this._children.forEach((child) => child._destroyByParent());
             this._children = null;
         }
     }
 
-    _destroyByParent() {
+    _destroyByParent(): void {
         this._destroyChildren();
         this._removeSubscriptions();
         this._state = states.DESTROYED_BY_PARENT;
     }
 
-    _notify(state, notifier) {
+    _notify(state: SubscriberState, notifier: AnySubscription): void {
         if (this._state >= state) {
             return;
         }
 
         if (state === states.MAYBE_DIRTY) {
-            scheduleStateActualization(notifier);
+            scheduleStateActualization(notifier as AnyComputed);
         } else if (state === states.DIRTY) {
             this._state = state;
             scheduleReaction(this);
@@ -63,11 +92,13 @@ export class Reaction {
         }
     }
 
-    _subscribeTo(subscription) {
-        this._subscriptions.push(subscription);
+    _subscribeTo(subscription: AnySubscription): void {
+        if (!this._options.autocommitSubscriptions || subscription._addSubscriber(this)) {
+            this._subscriptions.push(subscription);
+        }
     }
 
-    _removeSubscriptions() {
+    _removeSubscriptions(): void {
         this._subscriptions.forEach((subscription) => {
             subscription._removeSubscriber(this);
         });
@@ -75,16 +106,20 @@ export class Reaction {
         this._subscriptions = [];
     }
 
-    runManager() {
+    _shouldRun(): boolean {
+        return this._state === states.DIRTY;
+    }
+
+    runManager(): void {
         if (this._manager) {
             this._removeSubscriptions();
-            return this._manager();
+            this._manager();
         } else {
-            return this.run();
+            this.run();
         }
     }
 
-    run() {
+    run(): Result {
         this._destroyChildren();
         this._removeSubscriptions();
 
@@ -95,7 +130,7 @@ export class Reaction {
 
         try {
             this._state = states.CLEAN;
-            return this._reaction.apply(this._context, arguments);
+            return this._reaction.apply(this._context!, arguments as unknown as Params);
         } finally {
             glob.gSubscriberContext = oldSubscriberContext;
             // if we are about to end all transactions, run the rest of reactions inside it
@@ -106,25 +141,30 @@ export class Reaction {
         }
     }
 
-    destroy() {
+    destroy(): void {
         this._destroyChildren();
         this._removeSubscriptions();
         this._state = states.DIRTY;
     }
 
-    commitSubscriptions() {
+    commitSubscriptions(): void {
         if (!this._options.autocommitSubscriptions) {
             this._subscriptions.forEach((subscription) => {
-                subscription._subscribers.add(this);
+                subscription._addSubscriber(this);
             });
         }
     }
 
-    setOptions(options) {
+    setOptions(options: IReactionOptions): void {
         this._options = getReactionOptions(options);
     }
 }
 
-export function reaction(reactor, context, manager, options) {
+export function reaction<Ctx, Params extends any[], Result>(
+    reactor: (this: Ctx, ...args: Params) => Result,
+    context?: Ctx,
+    manager?: () => void,
+    options?: IReactionOptions
+) {
     return new Reaction(reactor, context, manager, options);
 }
