@@ -129,9 +129,11 @@
                 <li class="third-level"><a href="#constructor_2">constructor</a></li>
                 <li class="third-level"><a href="#runargs">.run(...args)</a></li>
                 <li class="third-level"><a href="#destroy">.destroy()</a></li>
+                <li class="third-level"><a href="#commitsubscriptions">.commitSubscriptions()</a></li>
+                <li class="third-level"><a href="#setoptionsoptions">.setOptions(options)</a></li>
             <li class="second-level"><a href="#actions-and-transactions">Actions and transactions</a></li>
                 
-                <li class="third-level"><a href="#actionargs">action(...args)</a></li>
+                <li class="third-level"><a href="#action">action</a></li>
                 <li class="third-level"><a href="#transaction-tx">transaction (tx)</a></li>
                 <li class="third-level"><a href="#untracked-transaction-utx">untracked transaction (utx)</a></li>
             <li class="second-level"><a href="#utilities">Utilities</a></li>
@@ -190,20 +192,33 @@ computed&lt;T&gt;(computer: () =&gt; T, options?: IComputedOptions&lt;T&gt;)
 <p>Get result of <code>computer</code> function invocation. The result is computed at the moment of invocation, if it's the first time the method is called or some of computed dependencies are changed. Otherwise, cached value is returned. Also it tracks the usage of the computed into underlying <code>Computed</code> or <code>Reaction</code></p>
 <h2 id="reaction">Reaction</h2>
 <h3 id="constructor_2">constructor</h3>
-<pre><code class="language-ts">new Reaction(reactor [, context [, manager]])
-reaction(reactor [, context [, manager]])
+<pre><code class="language-ts">new Reaction(reactor [, context [, manager, [, options]]])
+reaction(reactor [, context [, manager, [, options]]])
 </code></pre>
 <p>Creates a <code>Reaction</code> instance with <code>reactor</code> function in its core, with optional <code>context</code> and <code>manager</code> arguments. <code>context</code> is <code>this</code> argument for <code>reactor</code> param, defaults to <code>undefined</code>. <code>manager</code> is a function that should somehow schedule/manage invocation of <code>.run()</code> method of the object on reaction's dependency change. See <a href="https://github.com/zheksoon/dipole-react">dipole-react</a> bindings for example of <code>manager</code> usage. </p>
+<p>The <code>options</code> argument has following definition: </p>
+<pre><code class="language-ts">interface IReactionOptions {
+    autocommitSubscriptions?: boolean;
+}
+</code></pre>
+<p>Options description:</p>
+<ul>
+<li>
+<p><code>autocommitSubscriptions?: boolean</code> (default value - <code>true</code>): when <code>false</code>, forces <code>Reaction</code> instance not to subscribe to observable and computed values automatically, only after manually calling <a href="#commitSubscriptions">commitSubscriptions</a> method. </p>
+<p>This option was added to support SSR, Concurrent and Strict Modes in <code>dipole-react</code> connector, when rendered component can be thrown away. Without the option it would introduce a memory leak. Please see <a href="https://github.com/zheksoon/dipole-react">dipole-react</a> source code for more details.</p>
+</li>
+</ul>
 <h3 id="runargs">.run(...args)</h3>
-<pre><code class="language-ts">Reaction.prototype.run(...arguments)
-</code></pre>
-<p>Runs reaction's <code>reactor</code> function with <code>this</code> set to <code>context</code> and passes all method's arguments to it. Reaction body runs in implicit transaction, so there is no need to use transactions inside it.</p>
+<p>Runs reaction's <code>reactor</code> function with <code>this</code> set to <code>context</code> and passes all method's arguments to it. Reaction body runs in implicit transaction, so there is no need to use transactions inside of it.</p>
 <h3 id="destroy">.destroy()</h3>
-<pre><code class="language-ts">Reaction.prototype.destroy()
-</code></pre>
 <p>Destroys reaction, so it doesn't react to any changes anymore before next manual invocation of <code>.run()</code> method.</p>
+<h3 id="commitsubscriptions">.commitSubscriptions()</h3>
+<p>The method has effect only in case <code>autocommitSubscriptions</code> option was set to <code>false</code>. 
+It make the reaction instance subscribe to all its dependencies that were collected during the last <code>.run()</code> call.</p>
+<h3 id="setoptionsoptions">.setOptions(options)</h3>
+<p>The method allows to set reaction options on the fly. Currently only <code>autocommitSubscriptions</code> is supported. It's better not to call the method inside of <code>.run()</code>,  so reaction's subscriptions will be consistent.</p>
 <h2 id="actions-and-transactions">Actions and transactions</h2>
-<h3 id="actionargs">action(...args)</h3>
+<h3 id="action">action</h3>
 <pre><code class="language-ts">action((...args) =&gt; { ...action body... })
 </code></pre>
 <p>Returns a function wrapped in untracked transaction. Calls to the resulting function will pass all arguments and  <code>this</code> to action body.  Since action body is untracked, <code>.get()</code> calls or getters to any observables/computed values won't introduce new dependencies when called inside action body (but it's not true for transaction).</p>
