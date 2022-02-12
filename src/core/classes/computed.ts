@@ -1,7 +1,8 @@
 import { states } from "../constants";
 import { untracked } from "../transaction";
 import { glob, scheduleSubscribersCheck } from "../globals";
-import { checkSpecialContexts, trackSubscriberContext } from "./common";
+import { trackSubscriberContext } from "./common";
+import { checkSpecialContexts } from "../extras";
 import {
     AnyComputed,
     AnySubscriber,
@@ -207,21 +208,23 @@ export class Computed<T> implements IComputedImpl<T> {
         this._checkSubscribers();
     }
 
-    _hasNoSubscribers(): boolean {
-        return this._subscribers.size === 0;
+    _hasSubscribers(): boolean {
+        return this._subscribers.size !== 0;
     }
 
     _checkSubscribers(): void {
-        if (this._hasNoSubscribers() && !this._options.keepAlive) {
-            scheduleSubscribersCheck(this);
+        if (this._hasSubscribers() || this._options.keepAlive) {
+            return;
         }
+
+        scheduleSubscribersCheck(this);
     }
 }
 
-export function computed<T>(computer: () => T, options: IComputedOptions<T>): IComputed<T> {
+export function computed<T>(computer: () => T, options?: IComputedOptions<T>): IComputed<T> {
     return new Computed<T>(computer, options);
 }
 
-computed.prop = function computedProp<T>(computer: () => T, options: IComputedOptions<T>): T {
+computed.prop = function computedProp<T>(computer: () => T, options?: IComputedOptions<T>): T {
     return new Computed<T>(computer, options) as unknown as T;
 };

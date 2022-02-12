@@ -1,6 +1,5 @@
-import { glob, scheduleStateActualization, scheduleReaction } from "../globals";
+import { glob, scheduleStateActualization, scheduleReaction, endTransaction } from "../globals";
 import { states } from "../constants";
-import { endTransaction } from "../transaction";
 import {
     AnyComputed,
     AnyReaction,

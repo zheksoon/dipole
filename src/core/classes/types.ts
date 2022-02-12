@@ -23,41 +23,12 @@ export interface IObservable<T> extends IGettable<T> {
     notify(): void;
 }
 
-export interface IObservableImpl<T> extends IObservable<T> {
-    _addSubscriber(subscriber: AnySubscriber): boolean;
-
-    _removeSubscriber(subsriber: AnySubscriber): void;
-}
-
 export interface IComputed<T> extends IGettable<T> {
     destroy(): void;
 }
 
-export interface IComputedImpl<T> extends IComputed<T> {
-    _actualizeAndRecompute(): void;
-
-    _actualizeState(): void;
-
-    _recomputeAndCheckValue(): void;
-
-    _recomputeValue(): void;
-
-    _subscribeTo(subscription: AnySubscription): void;
-
-    _notify(state: SubscriberState, notifier: AnySubscription): void;
-
-    _removeSubscriptions(): void;
-
-    _addSubscriber(subscriber: AnySubscriber): boolean;
-
-    _removeSubscriber(subscriber: AnySubscriber): void;
-
-    _hasNoSubscribers(): boolean;
-
-    _checkSubscribers(): void;
-}
-
-export interface IReaction<Ctx, Params extends any[], Result> {
+// @ts-expect-error
+export interface IReaction<This, Params extends any[], Result> {
     runManager(): any;
 
     run(...params: Params): Result;
@@ -69,8 +40,32 @@ export interface IReaction<Ctx, Params extends any[], Result> {
     setOptions(options: IReactionOptions): void;
 }
 
-export interface IReactionImpl<Ctx, Params extends any[], Result>
-    extends IReaction<Ctx, Params, Result> {
+export interface IObservableImpl<T> extends IObservable<T> {
+    _addSubscriber(subscriber: AnySubscriber): boolean;
+
+    _removeSubscriber(subsriber: AnySubscriber): void;
+}
+
+export interface IComputedImpl<T> extends IComputed<T> {
+    _actualizeAndRecompute(): void;
+
+    _subscribeTo(subscription: AnySubscription): void;
+
+    _notify(state: SubscriberState, notifier: AnySubscription): void;
+
+    _removeSubscriptions(): void;
+
+    _addSubscriber(subscriber: AnySubscriber): boolean;
+
+    _removeSubscriber(subscriber: AnySubscriber): void;
+
+    _hasSubscribers(): boolean;
+
+    _checkSubscribers(): void;
+}
+
+export interface IReactionImpl<This, Params extends any[], Result>
+    extends IReaction<This, Params, Result> {
     _addChild(child: IReactionImpl<any, any, any>): void;
 
     _destroyChildren(): void;

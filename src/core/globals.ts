@@ -1,6 +1,6 @@
 import { AnyComputed, AnyReaction, AnySubscriber } from "./classes/types";
 import { SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL } from "./constants";
-import { SpecialContext } from "./extras";
+import { GettersSpyContext, NotifyContext } from "./extras";
 
 let gScheduledReactions: AnyReaction[] = [];
 let gScheduledStateActualizations: AnyComputed[] = [];
@@ -8,11 +8,7 @@ let gScheduledSubscribersChecks: Set<AnyComputed> = new Set();
 let gScheduledSubscribersCheckTimeout: ReturnType<typeof setTimeout> | null = null;
 
 type GlobVars = {
-    gSubscriberContext:
-        | SpecialContext<"GettersSpyContext">
-        | SpecialContext<"NotifyContext">
-        | AnySubscriber
-        | null;
+    gSubscriberContext: GettersSpyContext | NotifyContext | AnySubscriber | null;
     gTransactionDepth: number;
 };
 
@@ -21,7 +17,7 @@ type GlobConfig = {
     subscribersCheckInterval: number;
 };
 
-interface IConfig {
+export interface IConfig {
     reactionScheduler?: (runner: () => void) => void;
     subscribersCheckInterval?: number;
 }
@@ -32,7 +28,7 @@ export const glob: GlobVars = {
 };
 
 export const gConfig: GlobConfig = {
-    reactionScheduler: (runner: () => void) => runner(),
+    reactionScheduler: (runner) => runner(),
     subscribersCheckInterval: SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL,
 };
 
@@ -51,11 +47,7 @@ export function scheduleReaction(reaction: AnyReaction) {
     gScheduledReactions.push(reaction);
 }
 
-export function hasScheduledReactions() {
-    return gScheduledReactions.length > 0;
-}
-
-export function runScheduledReactions() {
+function runScheduledReactions() {
     let reaction;
     while ((reaction = gScheduledReactions.pop())) {
         if (reaction._shouldRun()) {
@@ -66,6 +58,7 @@ export function runScheduledReactions() {
 
 export function scheduleSubscribersCheck(computed: AnyComputed) {
     gScheduledSubscribersChecks.add(computed);
+
     if (!gScheduledSubscribersCheckTimeout) {
         gScheduledSubscribersCheckTimeout = setTimeout(
             runScheduledSubscribersChecks,
@@ -74,14 +67,14 @@ export function scheduleSubscribersCheck(computed: AnyComputed) {
     }
 }
 
-export function runScheduledSubscribersChecks() {
+function runScheduledSubscribersChecks() {
     gScheduledSubscribersChecks.forEach((computed) => {
         // delete computed first because it might be reintroduced
         // into the set later in the iteration by `_checkSubscribers` call
         // it's safe to delete and add items into Set while iterating
         gScheduledSubscribersChecks.delete(computed);
 
-        if (computed._hasNoSubscribers()) {
+        if (!computed._hasSubscribers()) {
             computed.destroy();
         }
     });
@@ -92,13 +85,30 @@ export function scheduleStateActualization(computed: AnyComputed) {
     gScheduledStateActualizations.push(computed);
 }
 
-export function hasScheduledStateActualizations() {
-    return gScheduledStateActualizations.length > 0;
-}
-
-export function runScheduledStateActualizations() {
+function runScheduledStateActualizations() {
     let computed;
     while ((computed = gScheduledStateActualizations.pop())) {
         computed._actualizeAndRecompute();
+    }
+}
+
+let isReactionRunnerScheduled = false;
+
+function shouldRunReactionLoop() {
+    return gScheduledReactions.length > 0 || gScheduledStateActualizations.length > 0;
+}
+
+function reactionRunner() {
+    while (shouldRunReactionLoop()) {
+        runScheduledStateActualizations();
+        runScheduledReactions();
+    }
+    isReactionRunnerScheduled = false;
+}
+
+export function endTransaction() {
+    if (!isReactionRunnerScheduled && shouldRunReactionLoop()) {
+        isReactionRunnerScheduled = true;
+        gConfig.reactionScheduler(reactionRunner);
     }
 }

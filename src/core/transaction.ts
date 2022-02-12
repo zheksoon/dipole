@@ -1,11 +1,4 @@
-import {
-    glob,
-    runScheduledStateActualizations,
-    runScheduledReactions,
-    hasScheduledStateActualizations,
-    hasScheduledReactions,
-    gConfig,
-} from "./globals";
+import { glob, endTransaction } from "./globals";
 
 // Transaction (TX)
 export function tx(thunk: () => any): void {
@@ -64,25 +57,4 @@ export function action<Args extends any[], Result, This>(
             glob.gSubscriberContext = oldSubscriberContext;
         }
     };
-}
-
-let isReactionRunnerScheduled = false;
-
-function shouldRunReactionLoop() {
-    return hasScheduledReactions() || hasScheduledStateActualizations();
-}
-
-function reactionRunner() {
-    while (shouldRunReactionLoop()) {
-        runScheduledStateActualizations();
-        runScheduledReactions();
-    }
-    isReactionRunnerScheduled = false;
-}
-
-export function endTransaction() {
-    if (!isReactionRunnerScheduled && shouldRunReactionLoop()) {
-        isReactionRunnerScheduled = true;
-        gConfig.reactionScheduler(reactionRunner);
-    }
 }

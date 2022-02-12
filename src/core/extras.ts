@@ -1,18 +1,39 @@
-import { IComputed, IObservable } from "./classes/types";
+import { Observable } from "./classes";
+import { AnySubscription, IComputed, IObservable } from "./classes/types";
 import { glob } from "./globals";
 import { tx } from "./transaction";
 
 type GettersSpyResult = IObservable<unknown> | IComputed<unknown>;
 
-export type SpecialContext<Type> = object & { _type: Type }; 
+type SpecialContext<Type> = object & { _type: Type };
+
+export type GettersSpyContext = SpecialContext<"GettersSpyContext">;
+
+export type NotifyContext = SpecialContext<"NotifyContext">;
 
 let gGettersSpyResult: undefined | GettersSpyResult = undefined;
 
-export const gettersSpyContext = {} as SpecialContext<"GettersSpyContext">;
-export const gettersNotifyContext = {} as SpecialContext<"NotifyContext">;
+const gettersSpyContext = {} as GettersSpyContext;
+const gettersNotifyContext = {} as NotifyContext;
 
-export function setGetterSpyResult(value: GettersSpyResult) {
-    gGettersSpyResult = value;
+export function checkSpecialContexts(self: AnySubscription) {
+    const { gSubscriberContext } = glob;
+
+    if (gSubscriberContext === gettersSpyContext) {
+        gGettersSpyResult = self;
+        return true;
+    }
+
+    if (gSubscriberContext === gettersNotifyContext) {
+        if (self instanceof Observable) {
+            self.notify();
+            return true;
+        } else {
+            throw new Error("Trying to notify not Observable instance");
+        }
+    }
+
+    return false;
 }
 
 export function fromGetter(gettersThunk: () => any): undefined | GettersSpyResult {

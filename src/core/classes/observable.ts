@@ -1,8 +1,8 @@
-import { glob } from "../globals";
+import { glob, endTransaction } from "../globals";
 import { states } from "../constants";
-import { endTransaction } from "../transaction";
 import { Computed } from "./computed";
-import { checkSpecialContexts, trackSubscriberContext } from "./common";
+import { trackSubscriberContext } from "./common";
+import { checkSpecialContexts } from "../extras";
 import {
     AnySubscriber,
     IObservable,
