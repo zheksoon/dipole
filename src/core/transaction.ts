@@ -38,11 +38,11 @@ export function untracked<T>(fn: () => T): T {
     }
 }
 
-export function action<Args extends any[], Result, This>(
-    fn: (this: This, ...args: Args) => Result
-): (this: This, ...args: Args) => Result {
+export function action<Args extends any[], Result>(
+    fn: (...args: Args) => Result
+): (...args: Args) => Result {
     // Do not DRY with `utx()` because of extra work for applying `this` and `arguments` to `fn`
-    return function () {
+    return function (this: unknown) {
         // actions should not introduce new dependencies when obsesrvables are observed
         const oldSubscriberContext = glob.gSubscriberContext;
         glob.gSubscriberContext = null;

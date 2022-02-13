@@ -1,6 +1,6 @@
 {
   "name": "dipole",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "dipole - tiny reactive state management that just works",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -47,7 +47,8 @@
     "functional reactive programming",
     "frp",
     "tfrp",
-    "mobx"
+    "mobx",
+    "typescript"
   ],
   "minify": {
     "mangle": {

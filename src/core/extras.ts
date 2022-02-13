@@ -3,15 +3,13 @@ import { AnySubscription, IComputed, IObservable } from "./classes/types";
 import { glob } from "./globals";
 import { tx } from "./transaction";
 
-type GettersSpyResult = IObservable<unknown> | IComputed<unknown>;
-
 type SpecialContext<Type> = object & { _type: Type };
 
 export type GettersSpyContext = SpecialContext<"GettersSpyContext">;
 
 export type NotifyContext = SpecialContext<"NotifyContext">;
 
-let gGettersSpyResult: undefined | GettersSpyResult = undefined;
+let gGettersSpyResult: undefined | IObservable<unknown> | IComputed<unknown> = undefined;
 
 const gettersSpyContext = {} as GettersSpyContext;
 const gettersNotifyContext = {} as NotifyContext;
@@ -36,7 +34,9 @@ export function checkSpecialContexts(self: AnySubscription) {
     return false;
 }
 
-export function fromGetter(gettersThunk: () => any): undefined | GettersSpyResult {
+export function fromGetter(
+    gettersThunk: () => unknown
+): undefined | IObservable<unknown> | IComputed<unknown> {
     const oldSubscriberContext = glob.gSubscriberContext;
     glob.gSubscriberContext = gettersSpyContext;
     try {
@@ -48,7 +48,7 @@ export function fromGetter(gettersThunk: () => any): undefined | GettersSpyResul
     }
 }
 
-export function notify(gettersThunk: () => any) {
+export function notify(gettersThunk: () => unknown) {
     const oldSubscriberContext = glob.gSubscriberContext;
     glob.gSubscriberContext = gettersNotifyContext;
     try {
