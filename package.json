@@ -1,11 +1,11 @@
 {
   "name": "dipole-es3",
-  "version": "2.2.9",
+  "version": "2.4.0",
   "description": "dipole - tiny reactive state management that just works",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "unpkg": "dist/index.umd.js",
-  "types": "./src/index.d.ts",
+  "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
       "browser": "./dist/index.js",
@@ -26,12 +26,13 @@
     "eslint-plugin-import": "^2.25.2",
     "jest": "^27.3.1",
     "microbundle": "^0.14.1",
-    "prettier": "^2.4.1"
+    "prettier": "^2.4.1",
+    "typescript": "^4.5.5"
   },
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "build": "npx microbundle build src/index.js",
+    "build": "npx microbundle build src/index.ts",
     "build-docs": "mkdocs gh-deploy"
   },
   "jest": {
@@ -46,7 +47,8 @@
     "functional reactive programming",
     "frp",
     "tfrp",
-    "mobx"
+    "mobx",
+    "typescript"
   ],
   "minify": {
     "mangle": {
@@ -57,7 +59,7 @@
         "HashSet"
       ],
       "properties": {
-        "regex": "^(gComputedContext|gTransactionDepth)"
+        "regex": "^(gSubscriberContext|gTransactionDepth)"
       }
     }
   },

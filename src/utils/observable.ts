@@ -2,11 +2,11 @@ import { Observable, Computed } from "../core/classes";
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
-export function makeObservable(obj) {
+export function makeObservable<T extends object>(obj: T): T {
     const descriptors = [];
     for (const key in obj) {
         if (hasOwnProperty.call(obj, key)) {
-            const currentDescriptor = Object.getOwnPropertyDescriptor(obj, key);
+            const currentDescriptor = Object.getOwnPropertyDescriptor(obj, key)!;
             if (currentDescriptor.configurable && currentDescriptor.value !== undefined) {
                 const prop = currentDescriptor.value;
 
@@ -18,7 +18,7 @@ export function makeObservable(obj) {
                         get() {
                             return prop.get();
                         },
-                        set(value) {
+                        set(value: any) {
                             prop.set(value);
                         },
                     });
@@ -44,20 +44,28 @@ export function makeObservable(obj) {
 }
 
 // fool typescript a bit for seamless intergration with makeObservable
-export function asProp(value) {
-    return value;
+export function asProp<T>(value: Observable<T> | Computed<T>): T {
+    return value as unknown as T;
 }
+
+type ObservableProps<T extends object> = {
+    [K in keyof T]?: Observable<T[K]> | Computed<T[K]>;
+};
 
 const isSymbolAvailable = typeof Symbol !== "undefined";
 
 const observablesProp = isSymbolAvailable ? Symbol("$$observables") : "$$observables";
 const observableKeysProp = isSymbolAvailable ? Symbol("$$observableKeys") : "$$observableKeys";
 
-export function makeObservableProto(obj, targetClass, observables) {
+export function makeObservableProto<T extends object>(
+    obj: T,
+    targetClass: new (...args: any) => T,
+    observables: ObservableProps<T>
+): void {
     const proto = targetClass.prototype;
 
     if (!hasOwnProperty.call(proto, observableKeysProp)) {
-        let observableKeys = Object.keys(observables);
+        let observableKeys: (string | symbol)[] = Object.keys(observables);
         if (Object.getOwnPropertySymbols) {
             const symbolKeys = Object.getOwnPropertySymbols(observables);
             if (symbolKeys.length > 0) {
@@ -66,6 +74,7 @@ export function makeObservableProto(obj, targetClass, observables) {
         }
 
         const descriptors = observableKeys.map((key) => {
+            // @ts-ignore
             const value = observables[key];
 
             if (value instanceof Observable) {
@@ -73,11 +82,11 @@ export function makeObservableProto(obj, targetClass, observables) {
                     key,
                     enumerable: true,
                     configurable: false,
-                    get() {
-                        return this[observablesProp][key].get();
+                    get(): any {
+                        return (this as any)[observablesProp][key].get();
                     },
-                    set(value) {
-                        this[observablesProp][key].set(value);
+                    set(value: any): any {
+                        (this as any)[observablesProp][key].set(value);
                     },
                 };
             } else if (value instanceof Computed) {
@@ -85,8 +94,8 @@ export function makeObservableProto(obj, targetClass, observables) {
                     key,
                     enumerable: true,
                     configurable: false,
-                    get() {
-                        return this[observablesProp][key].get();
+                    get(): any {
+                        return (this as any)[observablesProp][key].get();
                     },
                 };
             } else {
@@ -109,11 +118,13 @@ export function makeObservableProto(obj, targetClass, observables) {
         });
     }
 
-    const existingObservables = obj[observablesProp];
+    // @ts-ignore
+    const existingObservables = obj[observablesProp] as ObservableProps<T>;
     const updatedObservables = Object.assign(existingObservables || {}, observables);
 
     if (!existingObservables) {
         if (isSymbolAvailable) {
+            // @ts-ignore
             obj[observablesProp] = updatedObservables;
         } else {
             Object.defineProperty(obj, observablesProp, {

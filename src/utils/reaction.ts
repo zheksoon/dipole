@@ -1,7 +1,8 @@
 import { reaction } from "../core/classes";
+import { IReaction } from "../core/classes/types";
 import { utx } from "../core/transaction";
 
-export function when(conditionFn, body) {
+export function when(conditionFn: () => boolean, body: () => unknown): IReaction<null, [], void> {
     const r = reaction(() => {
         const cond = conditionFn();
         if (cond) {
@@ -12,7 +13,7 @@ export function when(conditionFn, body) {
     return r;
 }
 
-export function once(conditionFn, body) {
+export function once(conditionFn: () => boolean, body: () => unknown): IReaction<null, [], void> {
     const r = reaction(() => {
         const cond = conditionFn();
         if (cond) {

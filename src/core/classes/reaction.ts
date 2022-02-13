@@ -1,0 +1,172 @@
+import { glob, scheduleStateActualization, scheduleReaction, endTransaction } from "../globals";
+import { states } from "../constants";
+import { randomInt } from "../utils/random";
+import {
+    AnyComputed,
+    AnyReaction,
+    AnySubscription,
+    IReactionImpl,
+    IReactionOptions,
+    SubscriberState,
+} from "./types";
+
+type Options = {
+    autocommitSubscriptions: boolean;
+};
+
+type ReactionState = typeof states.CLEAN | typeof states.DIRTY | typeof states.DESTROYED_BY_PARENT;
+
+function getReactionOptions(options?: IReactionOptions): Options {
+    const defaultOptions = {
+        autocommitSubscriptions: true,
+    };
+
+    if (options && typeof options === "object") {
+        if (options.autocommitSubscriptions != null) {
+            defaultOptions.autocommitSubscriptions = !!options.autocommitSubscriptions;
+        }
+    }
+
+    return defaultOptions;
+}
+
+export class Reaction<Ctx, Params extends any[], Result>
+    implements IReactionImpl<Ctx, Params, Result>
+{
+    public _hash: number;
+    private _reaction: (this: Ctx, ...args: Params) => Result;
+    private _context: Ctx | null;
+    private _manager: (() => void) | undefined;
+    private _state: ReactionState;
+    private _subscriptions: AnySubscription[];
+    private _children: null | AnyReaction[];
+    private _options: Options;
+
+    constructor(
+        reaction: (this: Ctx, ...args: Params) => Result,
+        context?: Ctx,
+        manager?: () => void,
+        options?: IReactionOptions
+    ) {
+        this._hash = randomInt();
+        this._reaction = reaction;
+        this._context = context || null;
+        this._manager = manager;
+        this._state = states.DIRTY;
+        this._subscriptions = [];
+        this._children = null;
+        this._options = getReactionOptions(options);
+
+        const { gSubscriberContext } = glob;
+        if (gSubscriberContext !== null && gSubscriberContext instanceof Reaction) {
+            gSubscriberContext._addChild(this);
+        }
+    }
+
+    _addChild(child: AnyReaction): void {
+        (this._children || (this._children = [])).push(child);
+    }
+
+    _destroyChildren(): void {
+        if (this._children !== null) {
+            this._children.forEach((child) => child._destroyByParent());
+            this._children = null;
+        }
+    }
+
+    _destroyByParent(): void {
+        this._destroyChildren();
+        this._removeSubscriptions();
+        this._state = states.DESTROYED_BY_PARENT;
+    }
+
+    _notify(state: SubscriberState, notifier: AnySubscription): void {
+        if (this._state >= state) {
+            return;
+        }
+
+        if (state === states.MAYBE_DIRTY) {
+            scheduleStateActualization(notifier as AnyComputed);
+        } else if (state === states.DIRTY) {
+            this._state = state;
+            scheduleReaction(this);
+            this._destroyChildren();
+        }
+    }
+
+    _subscribeTo(subscription: AnySubscription): void {
+        if (!this._options.autocommitSubscriptions || subscription._addSubscriber(this)) {
+            this._subscriptions.push(subscription);
+        }
+    }
+
+    _removeSubscriptions(): void {
+        this._subscriptions.forEach((subscription) => {
+            subscription._removeSubscriber(this);
+        });
+
+        this._subscriptions = [];
+    }
+
+    _shouldRun(): boolean {
+        return this._state === states.DIRTY;
+    }
+
+    runManager(): void {
+        if (this._manager) {
+            this._removeSubscriptions();
+            this._manager();
+        } else {
+            this.run();
+        }
+    }
+
+    run(): Result {
+        this._destroyChildren();
+        this._removeSubscriptions();
+
+        const oldSubscriberContext = glob.gSubscriberContext;
+        glob.gSubscriberContext = this;
+
+        ++glob.gTransactionDepth;
+
+        try {
+            this._state = states.CLEAN;
+            return this._reaction.apply(this._context!, arguments as unknown as Params);
+        } finally {
+            glob.gSubscriberContext = oldSubscriberContext;
+            // if we are about to end all transactions, run the rest of reactions inside it
+            if (glob.gTransactionDepth === 1) {
+                endTransaction();
+            }
+            --glob.gTransactionDepth;
+        }
+    }
+
+    destroy(): void {
+        this._destroyChildren();
+        this._removeSubscriptions();
+        this._state = states.DIRTY;
+    }
+
+    commitSubscriptions(): void {
+        if (!this._options.autocommitSubscriptions) {
+            this._subscriptions.forEach((subscription) => {
+                subscription._addSubscriber(this);
+            });
+        }
+    }
+
+    setOptions(options: IReactionOptions): void {
+        this._options = getReactionOptions(options);
+    }
+}
+
+export function reaction<Ctx, Params extends any[], Result>(
+    reactor: (this: Ctx, ...args: Params) => Result,
+    context?: Ctx,
+    manager?: () => void,
+    options?: IReactionOptions
+) {
+    return new Reaction(reactor, context, manager, options);
+}

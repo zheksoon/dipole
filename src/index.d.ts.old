@@ -15,6 +15,10 @@ declare module "dipole" {
         keepAlive?: boolean;
     }
 
+    export interface IReactionOptions {
+        autocommitSubscriptions?: boolean;
+    }
+
     export interface IGettable<T> {
         get(): T;
     }
@@ -36,11 +40,14 @@ declare module "dipole" {
         constructor(
             reaction: (this: Ctx, ...params: Params) => Result,
             context?: Ctx,
-            manager?: (this: Reaction<Ctx, Params, Result>) => any
+            manager?: (this: Reaction<Ctx, Params, Result>) => any,
+            options?: IReactionOptions,
         );
         runManager(): any;
         run(...params: Params): Result;
         destroy(): void;
+        commitSubscriptions(): void;
+        setOptions(options: IReactionOptions): void;
     }
 
     export function observable<T>(value: T, options?: IObservableOptions<T>): Observable<T>;
@@ -56,7 +63,8 @@ declare module "dipole" {
     export function reaction<Ctx, Params extends any[], Result>(
         reaction: (this: Ctx, ...params: Params) => Result,
         context?: Ctx,
-        manager?: (this: Reaction<Ctx, Params, Result>) => any
+        manager?: (this: Reaction<Ctx, Params, Result>) => any,
+        options?: IReactionOptions,
     ): Reaction<Ctx, Params, Result>;
 
     export function action<T extends any[], U>(fn: (...args: T) => U): (...args: T) => U;

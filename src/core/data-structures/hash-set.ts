@@ -3,7 +3,11 @@
 const FILL_FACTOR_BY_16 = 11;
 const INITIAL_STORAGE_SIZE = 4;
 
-function newArray(size) {
+export interface IHashable {
+    _hash: number;
+}
+
+function newArray(size: number): undefined[] {
     const items = new Array(size);
 
     for (let i = 0; i < size; i++) {
@@ -13,7 +17,12 @@ function newArray(size) {
     return items;
 }
 
-export class HashSet {
+export class HashSet<T extends IHashable> {
+    _items: (undefined | T)[];
+    _size: number;
+    _maxSizeBeforeClear: number;
+    _isInIteration: boolean;
+
     constructor() {
         this._items = newArray(INITIAL_STORAGE_SIZE);
         this._size = 0;
@@ -21,7 +30,7 @@ export class HashSet {
         this._isInIteration = false;
     }
 
-    add(item) {
+    add(item: T): boolean {
         if (this._isInIteration) {
             return false;
         }
@@ -49,7 +58,7 @@ export class HashSet {
         return false;
     }
 
-    _rehashUp(length) {
+    _rehashUp(length: number): void {
         const oldItems = this._items;
         const oldLength = oldItems.length;
 
@@ -64,7 +73,7 @@ export class HashSet {
         }
     }
 
-    remove(item) {
+    remove(item: T): boolean {
         if (this._isInIteration) {
             return false;
         }
@@ -106,11 +115,11 @@ export class HashSet {
         return false;
     }
 
-    size() {
+    size(): number {
         return this._size;
     }
 
-    forEach(iteratee) {
+    forEach(iteratee: (item: T) => void): void {
         this._isInIteration = true;
 
         const items = this._items;
@@ -126,9 +135,9 @@ export class HashSet {
         this._isInIteration = false;
     }
 
-    clearAndResize() {
+    clearAndResize(): void {
         const targetSize = this._maxSizeBeforeClear;
-        
+
         let storageSize = INITIAL_STORAGE_SIZE;
         while (targetSize > (storageSize * FILL_FACTOR_BY_16) >> 4) {
             storageSize *= 2;
@@ -144,7 +153,7 @@ export class HashSet {
                 items[i] = undefined;
             }
         }
-        
+
         this._size = 0;
         this._maxSizeBeforeClear = 0;
     }
