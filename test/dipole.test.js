@@ -14,6 +14,7 @@ const {
     fromGetter,
     when,
     once,
+    configure,
 } = require("../dist/index.js");
 
 let trackedUpdatesCounter = new WeakMap();
@@ -85,6 +86,12 @@ describe("Observable tests", () => {
             c1.get();
             expect(trackedUpdates(c1)).toBe(2);
         });
+    });
+
+    test("observable.prop returns instance of Observable", () => {
+        const o1 = observable.prop(1);
+        expect(o1).toBeInstanceOf(Observable);
+        expect(o1.get()).toBe(1);
     });
 });
 
@@ -868,6 +875,13 @@ describe("Computed tests", () => {
             expect(trackedUpdates(c1)).toBe(1);
         });
     });
+
+    test("computed.prop returns instance of Computed", () => {
+        const o1 = observable.prop(1);
+        const c1 = computed.prop(() => o1.get() + 1);
+        expect(c1).toBeInstanceOf(Computed);
+        expect(c1.get()).toBe(2);
+    });
 });
 
 describe("Reaction tests", () => {
@@ -1371,6 +1385,129 @@ describe("Reaction tests", () => {
             // doesn't react anymore
             o2.notify();
             expect(trackedUpdates(r2)).toBe(2);
+        });
+    });
+
+    describe("reaction options", () => {
+        test("accepts options argument", () => {
+            expect(() => {
+                reaction(() => {}, null, null, { autocommitSubscriptions: true });
+            }).not.toThrow();
+        });
+
+        describe("autocommitSubscriptions", () => {
+            test("works as usual when autocommitSubscriptions = true", () => {
+                const o1 = observable(1);
+
+                const r1 = reaction(
+                    () => {
+                        o1.get();
+                        trackUpdate(r1);
+                    },
+                    null,
+                    null,
+                    { autocommitSubscriptions: true }
+                );
+
+                r1.run();
+                expect(trackedUpdates(r1)).toBe(1);
+
+                o1.set(2);
+                expect(trackedUpdates(r1)).toBe(2);
+            });
+
+            test("doesn't subscribe to dependencies automatically when autocommitSubscriptions = false", () => {
+                const o1 = observable(1);
+
+                const r1 = reaction(
+                    () => {
+                        o1.get();
+                        trackUpdate(r1);
+                    },
+                    null,
+                    null,
+                    { autocommitSubscriptions: false }
+                );
+
+                r1.run();
+                expect(trackedUpdates(r1)).toBe(1);
+
+                o1.set(2);
+                expect(trackedUpdates(r1)).toBe(1);
+
+                r1.run();
+                expect(trackedUpdates(r1)).toBe(2);
+
+                o1.set(3);
+                expect(trackedUpdates(r1)).toBe(2);
+            });
+
+            test("subscribes to dependencies only after commitSubscriptions() method is called", () => {
+                const o1 = observable(1);
+
+                const r1 = reaction(
+                    () => {
+                        o1.get();
+                        trackUpdate(r1);
+                    },
+                    null,
+                    null,
+                    { autocommitSubscriptions: false }
+                );
+
+                r1.run();
+                expect(trackedUpdates(r1)).toBe(1);
+
+                o1.set(2);
+                expect(trackedUpdates(r1)).toBe(1);
+
+                r1.commitSubscriptions();
+                expect(trackedUpdates(r1)).toBe(1);
+
+                o1.set(3);
+                expect(trackedUpdates(r1)).toBe(2);
+
+                o1.set(4);
+                expect(trackedUpdates(r1)).toBe(2);
+
+                r1.commitSubscriptions();
+                expect(trackedUpdates(r1)).toBe(2);
+
+                o1.set(5);
+                expect(trackedUpdates(r1)).toBe(3);
+            });
+
+            test("turns to normal behaviour after setOptions is called with autocommitSubscriptions = true", () => {
+                const o1 = observable(1);
+
+                const r1 = reaction(
+                    () => {
+                        o1.get();
+                        trackUpdate(r1);
+                    },
+                    null,
+                    null,
+                    { autocommitSubscriptions: false }
+                );
+
+                r1.run();
+
+                o1.set(1);
+                expect(trackedUpdates(r1)).toBe(1);
+
+                r1.commitSubscriptions();
+                r1.setOptions({ autocommitSubscriptions: true });
+                expect(trackedUpdates(r1)).toBe(1);
+
+                o1.set(2);
+                expect(trackedUpdates(r1)).toBe(2);
+
+                o1.set(3);
+                expect(trackedUpdates(r1)).toBe(3);
+
+                r1.run();
+                expect(trackedUpdates(r1)).toBe(4);
+            });
         });
     });
 
@@ -2053,9 +2190,135 @@ describe("Background subscribers check", () => {
         expect(c._subscribers.size).toBe(0);
         expect(o._subscribers.size).toBe(1); // computed is still subscribed
 
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        expect(c._subscribers.size).toBe(0);
+        expect(o._subscribers.size).toBeLessThan(2); // computed still might be subscribed
+
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         expect(c._subscribers.size).toBe(0);
         expect(o._subscribers.size).toBe(0); // computed is unsubscribed
+    });
+});
+
+describe("Global options", () => {
+    describe("reactionScheduler", () => {
+        beforeEach(() => {
+            configure({ reactionScheduler: (runner) => runner() });
+        });
+
+        afterEach(() => {
+            configure({ reactionScheduler: (runner) => runner() });
+        });
+
+        test("can set up a custom scheduler", () => {
+            const o1 = observable(1);
+            const r1 = reaction(() => {
+                o1.get();
+                trackUpdate(r1);
+            });
+
+            const reactionScheduler = jest.fn((runner) => runner());
+
+            configure({ reactionScheduler });
+
+            r1.run();
+            expect(trackedUpdates(r1)).toBe(1);
+            expect(reactionScheduler).toHaveBeenCalledTimes(0);
+
+            o1.set(2);
+            expect(trackedUpdates(r1)).toBe(2);
+            expect(reactionScheduler).toHaveBeenCalledTimes(1);
+
+            tx(() => {
+                o1.set(3);
+                expect(trackedUpdates(r1)).toBe(2);
+                expect(reactionScheduler).toHaveBeenCalledTimes(1);
+                o1.set(4);
+            });
+
+            expect(trackedUpdates(r1)).toBe(3);
+            expect(reactionScheduler).toHaveBeenCalledTimes(2);
+        });
+
+        test("Promise microtask scheduler works as expected", async () => {
+            const reactionScheduler = jest.fn((runner) => Promise.resolve().then(runner));
+            configure({ reactionScheduler });
+
+            const o1 = observable(1);
+            const o2 = observable(2);
+
+            const r1 = reaction(() => {
+                o1.get();
+                o2.get();
+                trackUpdate(r1);
+            });
+            r1.run();
+
+            expect(reactionScheduler).toHaveBeenCalledTimes(0);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o1.set(2);
+
+            expect(reactionScheduler).toHaveBeenCalledTimes(1);
+            expect(trackedUpdates(r1)).toBe(1);
+
+            await Promise.resolve();
+
+            expect(reactionScheduler).toHaveBeenCalledTimes(1);
+            expect(trackedUpdates(r1)).toBe(2);
+
+            o1.set(3);
+            o2.set(4);
+
+            expect(reactionScheduler).toHaveBeenCalledTimes(2);
+            expect(trackedUpdates(r1)).toBe(2);
+
+            await Promise.resolve();
+
+            expect(reactionScheduler).toHaveBeenCalledTimes(2);
+            expect(trackedUpdates(r1)).toBe(3);
+        });
+    });
+
+    describe("subscribersCheckInterval", () => {
+        afterEach(() => {
+            configure({ subscribersCheckInterval: 1000 });
+        });
+
+        test("can set up custom interval", async () => {
+            expect(() => {
+                configure({ subscribersCheckInterval: 100 });
+            }).not.toThrow();
+
+            const o = observable(1);
+            const c = computed(() => o.get() * 2);
+
+            const flag = observable(true);
+            const r = reaction(() => {
+                if (flag.get()) {
+                    c.get();
+                }
+            });
+            r.run();
+
+            expect(c._subscribers.size).toBe(1);
+            expect(o._subscribers.size).toBe(1);
+
+            flag.set(false);
+            expect(c._subscribers.size).toBe(0);
+            expect(o._subscribers.size).toBe(1); // computed is still subscribed
+
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            expect(c._subscribers.size).toBe(0);
+            expect(o._subscribers.size).toBeLessThan(2); // computed still might be subscribed
+
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            expect(c._subscribers.size).toBe(0);
+            expect(o._subscribers.size).toBe(0); // computed is unsubscribed
+        });
     });
 });
