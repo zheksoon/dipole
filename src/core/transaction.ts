@@ -43,7 +43,6 @@ export function action<Args extends any[], Result>(
 ): (...args: Args) => Result {
     // Do not DRY with `utx()` because of extra work for applying `this` and `arguments` to `fn`
     return function (this: unknown) {
-        // actions should not introduce new dependencies when obsesrvables are observed
         const oldSubscriberContext = glob.gSubscriberContext;
         glob.gSubscriberContext = null;
 

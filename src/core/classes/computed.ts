@@ -1,8 +1,7 @@
-import { states } from "../constants";
 import { untracked } from "../transaction";
 import { glob, scheduleSubscribersCheck } from "../globals";
-import { trackSubscriberContext } from "./common";
 import { checkSpecialContexts } from "../extras";
+import { State, trackSubscriberContext } from "./common";
 import {
     AnyComputed,
     AnySubscriber,
@@ -19,11 +18,11 @@ type Options<T> = {
 };
 
 type ComputedState =
-    | typeof states.NOT_INITIALIZED
-    | typeof states.CLEAN
-    | typeof states.COMPUTING
-    | typeof states.MAYBE_DIRTY
-    | typeof states.DIRTY;
+    | typeof State.NOT_INITIALIZED
+    | typeof State.CLEAN
+    | typeof State.COMPUTING
+    | typeof State.MAYBE_DIRTY
+    | typeof State.DIRTY;
 
 function getComputedOptions<T>(options?: IComputedOptions<T>): Options<T> {
     const defaultOptions: Options<T> = {
@@ -54,14 +53,14 @@ export class Computed<T> implements IComputedImpl<T> {
         this._subscribers = new Set();
         this._value = undefined;
         this._options = getComputedOptions(options);
-        this._state = states.NOT_INITIALIZED;
+        this._state = State.NOT_INITIALIZED;
         this._computer = computer;
         this._subscriptions = [];
         this._maybeDirtySubscriptions = null;
     }
 
     get(): T {
-        if (this._state === states.COMPUTING) {
+        if (this._state === State.COMPUTING) {
             throw new Error("Trying to get computed value while in computing state");
         }
 
@@ -79,34 +78,31 @@ export class Computed<T> implements IComputedImpl<T> {
 
     destroy(): void {
         this._removeSubscriptions();
-        this._state = states.NOT_INITIALIZED;
+        this._state = State.NOT_INITIALIZED;
         this._value = undefined;
     }
 
     _actualizeAndRecompute(): void {
-        if (this._state === states.MAYBE_DIRTY) {
+        if (this._state === State.MAYBE_DIRTY) {
             this._actualizeState();
         }
 
-        if (this._state === states.DIRTY || this._state === states.NOT_INITIALIZED) {
+        if (this._state === State.DIRTY || this._state === State.NOT_INITIALIZED) {
             this._recomputeAndCheckValue();
         }
     }
 
     _actualizeState(): void {
-        if (!this._maybeDirtySubscriptions) {
-            this._state = states.CLEAN;
-            return;
-        }
+        const subscriptions = this._maybeDirtySubscriptions;
 
         const actualizedAndNotNotified = (subscription: AnyComputed) => {
             subscription._actualizeAndRecompute();
-            return this._state === states.MAYBE_DIRTY;
+            return this._state === State.MAYBE_DIRTY;
         };
 
-        if (this._maybeDirtySubscriptions.every(actualizedAndNotNotified)) {
+        if (!subscriptions || subscriptions.every(actualizedAndNotNotified)) {
             // we actualized all subscriptions and nobody notified us, so we are clean
-            this._state = states.CLEAN;
+            this._state = State.CLEAN;
         }
 
         this._maybeDirtySubscriptions = null;
@@ -117,13 +113,13 @@ export class Computed<T> implements IComputedImpl<T> {
         const value = this._recomputeValue();
         const { checkValueFn } = this._options;
 
-        if (checkValueFn !== null && stateBefore !== states.NOT_INITIALIZED) {
+        if (checkValueFn !== null && stateBefore !== State.NOT_INITIALIZED) {
             const isSameValue = untracked(() => checkValueFn(this._value!, value));
 
             if (isSameValue) return;
 
             // the value has changed - do the delayed notification of all subscribers
-            this._notifySubscribers(states.DIRTY);
+            this._notifySubscribers(State.DIRTY);
         }
 
         this._value = value;
@@ -134,10 +130,10 @@ export class Computed<T> implements IComputedImpl<T> {
         glob.gSubscriberContext = this;
 
         const prevState = this._state;
-        this._state = states.COMPUTING;
+        this._state = State.COMPUTING;
         try {
             const value = this._computer();
-            this._state = states.CLEAN;
+            this._state = State.CLEAN;
             return value;
         } catch (e) {
             this._removeSubscriptions();
@@ -154,14 +150,18 @@ export class Computed<T> implements IComputedImpl<T> {
         }
     }
 
+    _addMaybeDirtySubscription(notifier: AnyComputed): void {
+        (this._maybeDirtySubscriptions ||= []).push(notifier);
+    }
+
     _notify(state: SubscriberState, notifier: AnySubscription): void {
         if (this._state >= state) {
             return;
         }
 
         if (this._options.checkValueFn !== null) {
-            if (this._state === states.CLEAN) {
-                this._notifySubscribers(states.MAYBE_DIRTY);
+            if (this._state === State.CLEAN) {
+                this._notifySubscribers(State.MAYBE_DIRTY);
             }
         } else {
             this._notifySubscribers(state);
@@ -169,12 +169,9 @@ export class Computed<T> implements IComputedImpl<T> {
 
         this._state = state;
 
-        if (state === states.MAYBE_DIRTY) {
-            (this._maybeDirtySubscriptions || (this._maybeDirtySubscriptions = [])).push(
-                // only computeds may notify us as MAYBE_DIRTY
-                notifier as AnyComputed
-            );
-        } else if (state === states.DIRTY) {
+        if (state === State.MAYBE_DIRTY) {
+            this._addMaybeDirtySubscription(notifier as AnyComputed);
+        } else if (state === State.DIRTY) {
             this._removeSubscriptions();
         }
     }
@@ -195,12 +192,8 @@ export class Computed<T> implements IComputedImpl<T> {
     }
 
     _addSubscriber(subscriber: AnySubscriber): boolean {
-        if (!this._subscribers.has(subscriber)) {
-            this._subscribers.add(subscriber);
-            return true;
-        }
-
-        return false;
+        const subscribers = this._subscribers;
+        return subscribers.size < subscribers.add(subscriber).size;
     }
 
     _removeSubscriber(subscriber: AnySubscriber): void {

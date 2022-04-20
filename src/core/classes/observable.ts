@@ -1,7 +1,6 @@
 import { glob, endTransaction } from "../globals";
-import { states } from "../constants";
 import { Computed } from "./computed";
-import { trackSubscriberContext } from "./common";
+import { State, trackSubscriberContext } from "./common";
 import { checkSpecialContexts } from "../extras";
 import {
     AnySubscriber,
@@ -62,7 +61,7 @@ export class Observable<T> implements IObservableImpl<T> {
     }
 
     notify(): void {
-        this._notifySubscribers(states.DIRTY);
+        this._notifySubscribers(State.DIRTY);
 
         if (glob.gTransactionDepth === 0) {
             endTransaction();
@@ -76,12 +75,8 @@ export class Observable<T> implements IObservableImpl<T> {
     }
 
     _addSubscriber(subscriber: AnySubscriber): boolean {
-        if (!this._subscribers.has(subscriber)) {
-            this._subscribers.add(subscriber);
-            return true;
-        }
-
-        return false;
+        const subscribers = this._subscribers;
+        return subscribers.size < subscribers.add(subscriber).size;
     }
 
     _removeSubscriber(subscriber: AnySubscriber): void {

@@ -1057,7 +1057,7 @@ describe("Reaction tests", () => {
         expect(trackedUpdates(r1)).toBe(4);
     });
 
-    describe("reactions run in infinite loop if modify dependant observables", () => {
+    describe("reactions don't run in infinite loop if modify dependant observables", () => {
         test("case 1 (no subsequent subscription in reaction after set()", () => {
             const o1 = observable(0);
             const r1 = reaction(() => {
@@ -1067,7 +1067,7 @@ describe("Reaction tests", () => {
             });
 
             r1.run();
-            expect(o1.get()).toBe(50000);
+            expect(o1.get()).toBe(101);
         });
 
         test("case 2 (subsequent subscription in reaction after set()", () => {
@@ -1081,7 +1081,7 @@ describe("Reaction tests", () => {
             });
 
             r1.run();
-            expect(o1.get()).toBe(50000);
+            expect(o1.get()).toBe(101);
         });
 
         test("case 3 (computed, no subsequent subscription in reaction after set()", () => {
@@ -1094,8 +1094,8 @@ describe("Reaction tests", () => {
             });
 
             r1.run();
-            expect(o1.get()).toBe(50000 - 1);
-            expect(c1.get()).toBe(50000);
+            expect(o1.get()).toBe(101);
+            expect(c1.get()).toBe(102);
         });
 
         test("case 4 (computed, subsequent subscription in reaction after set()", () => {
@@ -1110,40 +1110,74 @@ describe("Reaction tests", () => {
             });
 
             r1.run();
-            expect(o1.get()).toBe(50000 - 1);
-            expect(c1.get()).toBe(50000);
+            expect(o1.get()).toBe(101);
+            expect(c1.get()).toBe(102);
         });
     });
 
-    test("should recover after exception", () => {
-        const o1 = observable(0);
-        const o2 = observable(123);
-        const c1 = computed(() => o1.get() + 1);
+    describe("Exception handling", () => {
+        test("dipole is usable after reaction exception", () => {
+            const o1 = observable(0);
+            const o2 = observable(1);
 
-        let result;
-        const r1 = reaction(() => {
-            if (c1.get() < 2) {
-                throw new Error("Bad!");
-            }
-            result = o2.get();
+            const r1 = reaction(() => {
+                trackUpdate(r1);
+                
+                if (o1.get() < 2) {
+                    throw new Error("Error");
+                }
+            });
+
+            const r2 = reaction(() => {
+                trackUpdate(r2);
+                o2.get();
+            });
+
+            r2.run();
+
+            expect(trackedUpdates(r2)).toBe(1);
+            expect(() => r1.run()).toThrow();
+            expect(trackedUpdates(r1)).toBe(1);
+
+            o2.set(2);
+
+            expect(trackedUpdates(r2)).toBe(2);
+
+            o1.set(3);
+
+            expect(trackedUpdates(r1)).toBe(2);
         });
 
-        expect(() => {
-            r1.run();
-        }).toThrow();
-
-        expect(() => {
-            o1.set(1); // the reaction doesn't run because it's screwed by exception
-        }).not.toThrow();
-
-        expect(() => {
-            r1.run(); // the reaction doesn't throw now and recovers from exception
-        }).not.toThrow();
-
-        expect(result).toBe(123);
-
-        o2.set(456);
-        expect(result).toBe(456);
+        test("should recover after exception", () => {
+            const o1 = observable(0);
+            const o2 = observable(123);
+            const c1 = computed(() => o1.get() + 1);
+    
+            let result;
+            const r1 = reaction(() => {
+                if (c1.get() < 2) {
+                    throw new Error("Bad!");
+                }
+                result = o2.get();
+            });
+    
+            expect(() => {
+                r1.run();
+            }).toThrow();
+    
+            expect(() => {
+                o1.set(1); // the reaction doesn't run because it's screwed by exception
+            }).not.toThrow();
+    
+            expect(() => {
+                r1.run(); // the reaction doesn't throw now and recovers from exception
+            }).not.toThrow();
+    
+            expect(result).toBe(123);
+    
+            o2.set(456);
+            expect(result).toBe(456);
+        });
     });
 
     test("should not run after destroy", () => {
