@@ -1,15 +1,6 @@
 import { AnyComputed, AnyReaction, AnySubscriber } from "./classes/types";
 import { GettersSpyContext, NotifyContext } from "./extras";
 
-const SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL = 1000;
-const MAX_REACTION_ITERATIONS = 100;
-
-let gScheduledReactions: (AnyReaction | null)[] = [];
-let gScheduledReactionsIndex: number = 0;
-let gScheduledStateActualizations: AnyComputed[] = [];
-let gScheduledSubscribersChecks: Set<AnyComputed> = new Set();
-let gScheduledSubscribersCheckTimeout: ReturnType<typeof setTimeout> | null = null;
-
 interface GlobalVars {
     gSubscriberContext: GettersSpyContext | NotifyContext | AnySubscriber | null;
     gTransactionDepth: number;
@@ -23,13 +14,23 @@ interface GlobalConfig {
 
 export type IConfig = Partial<GlobalConfig>;
 
+const SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL = 1000;
+const MAX_REACTION_ITERATIONS = 100;
+const DEFAULT_REACTION_RUNNER: GlobalConfig["reactionScheduler"] = (runner) => runner();
+
+let gScheduledReactions: (AnyReaction | null)[] = [];
+let gScheduledReactionsIndex: number = 0;
+let gScheduledStateActualizations: AnyComputed[] = [];
+let gScheduledSubscribersChecks: Set<AnyComputed> = new Set();
+let gScheduledSubscribersCheckTimeout: ReturnType<typeof setTimeout> | null = null;
+
 export const glob: GlobalVars = {
     gSubscriberContext: null,
     gTransactionDepth: 0,
 };
 
 export const gConfig: GlobalConfig = {
-    reactionScheduler: (runner) => runner(),
+    reactionScheduler: DEFAULT_REACTION_RUNNER,
     subscribersCheckInterval: SCHEDULED_SUBSCRIBERS_CHECK_INTERVAL,
     maxReactionIterations: MAX_REACTION_ITERATIONS,
 };
@@ -71,7 +72,9 @@ function runScheduledReactions() {
     }
 
     if (gScheduledReactionsIndex < endIndex && reactionIterationsLeft === 0) {
-        console.error("Possible infinite reaction loop: did not converge after 100 iterations");
+        console.error(
+            `Possible infinite reaction loop: did not converge after ${gConfig.maxReactionIterations} iterations`
+        );
     }
 
     gScheduledReactions = [];
@@ -113,11 +116,11 @@ function runScheduledStateActualizations() {
     }
 }
 
-let isReactionRunnerScheduled = false;
-
 function shouldRunReactionLoop() {
     return gScheduledReactions.length > 0 || gScheduledStateActualizations.length > 0;
 }
+
+let isReactionRunnerScheduled = false;
 
 function reactionRunner() {
     try {
@@ -135,7 +138,7 @@ function reactionRunner() {
 export function endTransaction() {
     if (!isReactionRunnerScheduled && shouldRunReactionLoop()) {
         isReactionRunnerScheduled = true;
-        reactionIterationsLeft = MAX_REACTION_ITERATIONS;
+        reactionIterationsLeft = gConfig.maxReactionIterations;
         gConfig.reactionScheduler(reactionRunner);
     }
 }
