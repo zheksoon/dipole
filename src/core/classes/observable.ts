@@ -1,7 +1,6 @@
 import { glob, endTransaction } from "../globals";
-import { states } from "../constants";
 import { Computed } from "./computed";
-import { trackSubscriberContext } from "./common";
+import { State, trackSubscriberContext } from "./common";
 import { checkSpecialContexts } from "../extras";
 import { HashSet } from "../data-structures/hash-set";
 
@@ -64,7 +63,7 @@ export class Observable<T> implements IObservableImpl<T> {
     }
 
     notify(): void {
-        this._notifySubscribers(states.DIRTY);
+        this._notifySubscribers(State.DIRTY);
 
         if (glob.gTransactionDepth === 0) {
             endTransaction();

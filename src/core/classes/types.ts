@@ -1,5 +1,7 @@
-import { states } from "../constants";
 import { IHashable } from "../data-structures/hash-set";
+import { State } from "./common";
+
+export type SubscriberState = typeof State.MAYBE_DIRTY | typeof State.DIRTY;
 
 export interface IObservableOptions<T> {
     checkValue?: (prevValue: T, nextValue: T) => boolean;
@@ -28,8 +30,7 @@ export interface IComputed<T> extends IGettable<T> {
     destroy(): void;
 }
 
-// @ts-expect-error
-export interface IReaction<This, Params extends any[], Result> {
+export interface IReaction<_This, Params extends any[], Result> {
     runManager(): any;
 
     run(...params: Params): Result;
@@ -88,8 +89,6 @@ export type AnyObservable = IObservableImpl<any>;
 export type AnyComputed = IComputedImpl<any>;
 
 export type AnyReaction = IReactionImpl<any, any, any>;
-
-export type SubscriberState = typeof states.MAYBE_DIRTY | typeof states.DIRTY;
 
 export type AnySubscriber = AnyComputed | AnyReaction;
 

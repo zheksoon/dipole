@@ -1,6 +1,6 @@
 import { glob, scheduleStateActualization, scheduleReaction, endTransaction } from "../globals";
-import { states } from "../constants";
 import { randomInt } from "../utils/random";
+import { State } from "./common";
 import {
     AnyComputed,
     AnyReaction,
@@ -14,7 +14,7 @@ type Options = {
     autocommitSubscriptions: boolean;
 };
 
-type ReactionState = typeof states.CLEAN | typeof states.DIRTY | typeof states.DESTROYED_BY_PARENT;
+type ReactionState = typeof State.CLEAN | typeof State.DIRTY | typeof State.DESTROYED_BY_PARENT;
 
 function getReactionOptions(options?: IReactionOptions): Options {
     const defaultOptions = {
@@ -52,7 +52,7 @@ export class Reaction<Ctx, Params extends any[], Result>
         this._reaction = reaction;
         this._context = context || null;
         this._manager = manager;
-        this._state = states.DIRTY;
+        this._state = State.DIRTY;
         this._subscriptions = [];
         this._children = null;
         this._options = getReactionOptions(options);
@@ -77,7 +77,7 @@ export class Reaction<Ctx, Params extends any[], Result>
     _destroyByParent(): void {
         this._destroyChildren();
         this._removeSubscriptions();
-        this._state = states.DESTROYED_BY_PARENT;
+        this._state = State.DESTROYED_BY_PARENT;
     }
 
     _notify(state: SubscriberState, notifier: AnySubscription): void {
@@ -85,9 +85,9 @@ export class Reaction<Ctx, Params extends any[], Result>
             return;
         }
 
-        if (state === states.MAYBE_DIRTY) {
+        if (state === State.MAYBE_DIRTY) {
             scheduleStateActualization(notifier as AnyComputed);
-        } else if (state === states.DIRTY) {
+        } else if (state === State.DIRTY) {
             this._state = state;
             scheduleReaction(this);
             this._destroyChildren();
@@ -109,7 +109,7 @@ export class Reaction<Ctx, Params extends any[], Result>
     }
 
     _shouldRun(): boolean {
-        return this._state === states.DIRTY;
+        return this._state === State.DIRTY;
     }
 
     runManager(): void {
@@ -131,7 +131,7 @@ export class Reaction<Ctx, Params extends any[], Result>
         ++glob.gTransactionDepth;
 
         try {
-            this._state = states.CLEAN;
+            this._state = State.CLEAN;
             return this._reaction.apply(this._context!, arguments as unknown as Params);
         } finally {
             glob.gSubscriberContext = oldSubscriberContext;
@@ -146,7 +146,7 @@ export class Reaction<Ctx, Params extends any[], Result>
     destroy(): void {
         this._destroyChildren();
         this._removeSubscriptions();
-        this._state = states.DIRTY;
+        this._state = State.DIRTY;
     }
 
     commitSubscriptions(): void {
