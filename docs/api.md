@@ -145,12 +145,13 @@ Calls `.notify()` method on all observables, which getters were executed in body
 dipole has global `configure` function that allows to tune some internal behaviour.
 
 ```ts
-interface IConfig {
-    reactionScheduler?: (runner: () => void) => void;
-    subscribersCheckInterval?: number;
+interface GlobalConfig {
+    reactionScheduler: (runner: () => void) => void;
+    subscribersCheckInterval: number;
+    maxReactionIterations: number;
 }
 
-export function configure(config: IConfig): void;
+export function configure(config: GlobalConfig): void;
 ```
 
 ### reactionScheduler
@@ -192,6 +193,30 @@ class UserModel {
 }
 ```
 
+#### Global error handling
+
+When some reaction raises an error, reaction execution loop is stopped. In order to continue, you should run the `runner` function again until it exits normally:
+
+```ts
+function reactionScheduler(runner: () => void) {
+    while (true) {
+        try {
+            runner();
+            break;
+        } catch (err) {
+            // Global error handler
+            console.log(err);
+        }
+    }
+}
+
+configure({ reactionScheduler });
+```
+
 ### subscribersCheckInterval
 
 `subscribersCheckInterval` option is interval in milliseconds for how often computed values that lost all their subscriptions (or never gained them) will be invalidated. Default value is `1000`.
+
+### maxReactionIterations
+
+`maxReactionIterations` limits number of reaction schedule/exceution loops, preventing dipole from infinite loops in case when a reaction changes some of its dependencies. Must be greater than `0`. Default value is `100`. When the limit is exceeded, a corresponding message will be logged to console.
