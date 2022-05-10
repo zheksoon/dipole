@@ -145,6 +145,7 @@
                 
                 <li class="third-level"><a href="#reactionscheduler">reactionScheduler</a></li>
                 <li class="third-level"><a href="#subscriberscheckinterval">subscribersCheckInterval</a></li>
+                <li class="third-level"><a href="#maxreactioniterations">maxReactionIterations</a></li>
     </ul>
 </div></div>
         <div class="col-md-9" role="main">
@@ -245,12 +246,13 @@ It make the reaction instance subscribe to all its dependencies that were collec
 <p>Calls <code>.notify()</code> method on all observables, which getters were executed in body function.</p>
 <h2 id="configure">configure</h2>
 <p>dipole has global <code>configure</code> function that allows to tune some internal behaviour.</p>
-<pre><code class="language-ts">interface IConfig {
-    reactionScheduler?: (runner: () =&gt; void) =&gt; void;
-    subscribersCheckInterval?: number;
+<pre><code class="language-ts">interface GlobalConfig {
+    reactionScheduler: (runner: () =&gt; void) =&gt; void;
+    subscribersCheckInterval: number;
+    maxReactionIterations: number;
 }
 
-export function configure(config: IConfig): void;
+export function configure(config: GlobalConfig): void;
 </code></pre>
 <h3 id="reactionscheduler">reactionScheduler</h3>
 <p><code>reactionScheduler</code> option allows to customize the way how reaction queue will be runned. The option must be a function that takes one argument (<code>runner</code>), and, when called, should somehow run the <code>runner</code> function.</p>
@@ -279,8 +281,26 @@ export function configure(config: IConfig): void;
     }) 
 }
 </code></pre>
+<h4 id="global-error-handling">Global error handling</h4>
+<p>When some reaction raises an error, reaction execution loop is stopped. In order to continue, you should run the <code>runner</code> function again until it exits normally:</p>
+<pre><code class="language-ts">function reactionScheduler(runner: () =&gt; void) {
+    while (true) {
+        try {
+            runner();
+            break;
+        } catch (err) {
+            // Global error handler
+            console.log(err);
+        }
+    }
+}
+
+configure({ reactionScheduler });
+</code></pre>
 <h3 id="subscriberscheckinterval">subscribersCheckInterval</h3>
-<p><code>subscribersCheckInterval</code> option is interval in milliseconds for how often computed values that lost all their subscriptions (or never gained them) will be invalidated. Default value is <code>1000</code>.</p></div>
+<p><code>subscribersCheckInterval</code> option is interval in milliseconds for how often computed values that lost all their subscriptions (or never gained them) will be invalidated. Default value is <code>1000</code>.</p>
+<h3 id="maxreactioniterations">maxReactionIterations</h3>
+<p><code>maxReactionIterations</code> limits number of reaction schedule/exceution loops, preventing dipole from infinite loops in case when a reaction changes some of its dependencies. Must be greater than <code>0</code>. Default value is <code>100</code>. When the limit is exceeded, a corresponding message will be logged to console.</p></div>
         
         
     </div>

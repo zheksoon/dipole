@@ -139,107 +139,115 @@
 <p>Dipole core consists three main classes: <code>Observable</code>, <code>Computed</code> and <code>Reaction</code>. All the classes can be constructed via non-capitalized factory functions <code>observable</code>, <code>computed</code> and <code>reaction</code> correspondingly without <code>new</code> keyword.</p>
 <h2 id="observable">Observable</h2>
 <p>Observables are containers that contain some value and allow some other dependent objects to get notified when the value changes.</p>
-<pre><code class="language-js">import { observable } from 'dipole'
+<pre><code class="language-js">import { observable } from &quot;dipole&quot;;
 
-const counter = observable(0)
-counter.get()   // returns 0
-counter.set(1)  // sets observable value to 1
+const counter = observable(0);
+counter.get();  // returns 0
+counter.set(1); // sets observable value to 1
 </code></pre>
 <p>For sure, it might be not convinient to call <code>.get()</code> or <code>.set()</code> on every observable access, so <a href="#observable-utilities">there are some helpers</a> to make the the process easy and transparent.</p>
 <h2 id="computed">Computed</h2>
 <p>Computed values are values that are derived from other observables and computeds with some pure function. The function should not contain any side-effects other than returning a value and depend only on observable/computed values. The result of computed is cached until any of its dependencies are changed.</p>
-<pre><code class="language-js">import { observable, computed } from 'dipole'
+<pre><code class="language-js">import { observable, computed } from &quot;dipole&quot;;
 
-const counter = observable(1)
+const counter = observable(1);
 
 const double = computed(() =&gt; {
-    console.log('Computing double value...')
-    return counter.get() * 2
-})
-double.get()    // prints 'Computing double value...' and returns 2
-double.get()    // doesn't print and returns 2 - the result is cached!
+    console.log(&quot;Computing double value...&quot;);
+    return counter.get() * 2;
+});
+double.get(); // prints 'Computing double value...' and returns 2
+double.get(); // doesn't print and returns 2 - the result is cached!
 
-counter.set(2)  // update computed dependency
-double.get()    // prints 'Computing double value...' and returns 4
+counter.set(2); // update computed dependency
+double.get();   // prints 'Computing double value...' and returns 4
 
 // another way to invalidate an observable is to call `.notify()`
 // this is useful when observable contains a complex object like Array or Map
-counter.notify()
-double.get()    // prints 'Computing double value...' and returns 4 again
+counter.notify();
+double.get(); // prints 'Computing double value...' and returns 4 again
 </code></pre>
 <p>Of course computed values can contain any kind of conditions/loops that dynamically reference to different observables, this will be correctly handled by dipole:</p>
-<pre><code class="language-js">const cond = observable(true)
-const a = observable('a')
-const b = observable('b')
+<pre><code class="language-js">const cond = observable(true);
+const a = observable(&quot;a&quot;);
+const b = observable(&quot;b&quot;);
 
 const result = computed(() =&gt; {
-    console.log('Computing result...')
-    return cond.get() ? a.get() : b.get()
-})
-result.get()    // prints 'Computing result' and returns 'a'
-                // now `result` depends on `cond` and `a` values
-cond.set(false)
-result.get()    // prints 'Computing result' and returns 'b'
-                // now `result` depends on `cond` and `b` values
+    console.log(&quot;Computing result...&quot;);
+    return cond.get() ? a.get() : b.get();
+});
+result.get(); // prints 'Computing result' and returns 'a'
+              // now `result` depends on `cond` and `a` values
+cond.set(false);
+result.get(); // prints 'Computing result' and returns 'b'
+              // now `result` depends on `cond` and `b` values
 
-a.set('aa')     // `result` doesn't depend on `a`, nothing will happen
-result.get()    // nothing changed for `result`, just returns 'b' again
+a.set(&quot;aa&quot;);  // `result` doesn't depend on `a`, nothing will happen
+result.get(); // nothing changed for `result`, just returns 'b' again
 
-b.set('bb')     // change `result` dependency
-result.get()    // prints 'Computing result' and returns 'bb'
+b.set(&quot;bb&quot;);  // change `result` dependency
+result.get(); // prints 'Computing result' and returns 'bb'
 </code></pre>
 <p>There are some intuitive limitations for computed values:</p>
-<p>1) They can't recursively refer to itself:</p>
-<pre><code class="language-js">const recur = computed(() =&gt; recur.get() + 1)
-recur.get() // throws 'Trying to get computed value while in computing state'
+<ol>
+<li>They can't recursively refer to itself:</li>
+</ol>
+<pre><code class="language-js">const recur = computed(() =&gt; recur.get() + 1);
+recur.get(); // throws 'Trying to get computed value while in computing state'
 </code></pre>
-<p>2) They must not change any observable or trigger any side-effects:</p>
-<pre><code class="language-js">const badBoy = computed(() =&gt; counter.set(0))
-badBoy.get()    // throws `Can't change observable value inside of computed`
+<ol>
+<li>They must not change any observable or trigger any side-effects:</li>
+</ol>
+<pre><code class="language-js">const badBoy = computed(() =&gt; counter.set(0));
+badBoy.get(); // throws `Can't change observable value inside of computed`
 </code></pre>
 <h2 id="reaction-and-transaction">Reaction and transaction</h2>
 <p>Reactions are automatic actions that are triggered on dependent observable/computed changes</p>
-<pre><code class="language-js">const a = observable(1)
-const b = observable(2)
+<pre><code class="language-js">const a = observable(1);
+const b = observable(2);
 
-const sum = computed(() =&gt; a.get() + b.get())
+const sum = computed(() =&gt; a.get() + b.get());
 
 const r = reaction(() =&gt; {
-    console.log(`Sum of ${a.get()} and ${b.get()} is ${sum.get()}`)
-})
-r.run()   // first run should be triggered manually
-          // prints 'Sum of 1 and 2 is 3'
+    console.log(`Sum of ${a.get()} and ${b.get()} is ${sum.get()}`);
+});
+r.run(); // first run should be triggered manually
+// prints 'Sum of 1 and 2 is 3'
 
-a.set(3)  // prints 'Sum of 3 and 2 is 5'
-b.set(4)  // prints 'Sum of 3 and 4 is 7'
+a.set(3); // prints 'Sum of 3 and 2 is 5'
+b.set(4); // prints 'Sum of 3 and 4 is 7'
+</code></pre>
+<p>Reactions can be destroyed, so they will not run after that:</p>
+<pre><code class="language-js">r.destroy();
+a.set(4); // doesn't react to the change anymore
 </code></pre>
 <h3 id="transaction">Transaction</h3>
 <p>Last lines show that reaction reacts to <strong>each</strong> change in its dependencies, synchronously. But what if we want to batch changes and run reaction only once after both <code>a</code> and <code>b</code> changes?
 Here's the answer: <strong>transaction</strong>:</p>
 <pre><code class="language-js">// `tx` stands for `transaction`
-import { tx } from 'dipole'
+import { tx } from &quot;dipole&quot;;
 
 tx(() =&gt; {
-    a.set(2)  // doesn't react
-    b.set(3)  // doesn't react too
-})            // prints 'Sum 2 and 3 is 5' right after the transaction end
+    a.set(2); // doesn't react
+    b.set(3); // doesn't react too
+}); // prints 'Sum 2 and 3 is 5' right after the transaction end
 </code></pre>
 <h3 id="action-and-untracked-transaction">Action and untracked transaction</h3>
-<p><strong>Actions</strong> are functions wrapped in transaction. But there is also one significant difference with plain transactions: actions are <strong>untracked</strong>. This means that any access to any observable or computed fields performed in action won't be tracked by calling function/reaction. This makes actions building pieces of your application - they could be safely called from any place with predictable consequences. </p>
+<p><strong>Actions</strong> are functions wrapped in transaction. But there is also one significant difference with plain transactions: actions are <strong>untracked</strong>. This means that any access to any observable or computed fields performed in action won't be tracked by calling function/reaction. This makes actions building pieces of your application - they could be safely called from any place with predictable consequences.</p>
 <p>Actions do really play well with <a href="#observable-utilities">observable utilities</a>, making writing complex mutations simple.</p>
-<pre><code class="language-js">import { observable, action, makeObservable } from 'dipole'
+<pre><code class="language-js">import { observable, action, makeObservable } from &quot;dipole&quot;;
 
 class SumModel {
-  constructor(a, b) {
-    this.a = observable.prop(a)
-    this.b = observable.prop(b)
-    makeObservable(this)
-  }
+    constructor(a, b) {
+        this.a = observable.prop(a);
+        this.b = observable.prop(b);
+        makeObservable(this);
+    }
 
-  addBoth = action((amount) =&gt; {
-    this.a += amount
-    this.b += amount
-  })
+    addBoth = action((amount) =&gt; {
+        this.a += amount;
+        this.b += amount;
+    });
 }
 
 const model = new SumModel(1, 2);
@@ -248,50 +256,50 @@ model.addBoth(3);
 </code></pre>
 <p>Sometimes inplace untracked transactions are usefull too, so there is <code>utx</code> function for this (<code>utx</code> stands for Untracked TX):</p>
 <pre><code class="language-js">class UserModel {
-  isLoading = observable.prop(false);
-  user = observanle.prop(null);
-  error = observable.prop(null);
+    isLoading = observable.prop(false);
+    user = observanle.prop(null);
+    error = observable.prop(null);
 
-  constructor() {
-    makeObservable(this);
-  }
-
-  // async functions can't be wrapped in `action`, so using `utx` inplace for observable changes
-  async fetchUser() {
-    utx(() =&gt; this.isLoading = true);
-    try {
-      const response = await userService.getData();
-      utx(() =&gt; {
-        this.user = response.user;
-        this.isLoading = false;
-      });
-    } catch (err) {
-      utx(() =&gt; {
-        this.error = err;
-        this.isLoading = false;
-      })
+    constructor() {
+        makeObservable(this);
     }
-  }
+
+    // async functions can't be wrapped in `action`, so using `utx` inplace for observable changes
+    async fetchUser() {
+        utx(() =&gt; (this.isLoading = true));
+        try {
+            const response = await userService.getData();
+            utx(() =&gt; {
+                this.user = response.user;
+                this.isLoading = false;
+            });
+        } catch (err) {
+            utx(() =&gt; {
+                this.error = err;
+                this.isLoading = false;
+            });
+        }
+    }
 }
 </code></pre>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The syntax for async flow may be too verbose for regular usage, especially when there are many async functions or complex logic inside. <a href="/api/#reactionscheduler">Check out how</a> you can configure reaction scheduler to use microtasks, so you can write async flows without <code>utx</code></p>
+</div>
 <p><code>utx</code> function also returns the result of its body execution, so it could be used for peeking at some observables/computed values without getting them tracked by underlying reaction/computed:</p>
-<pre><code class="language-js">const person = observable('Alice')
+<pre><code class="language-js">const person = observable(&quot;Alice&quot;);
 
 const government = reaction(() =&gt; {
     const who = utx(() =&gt; person.get());
     console.log(`${who} is caught!`);
-})
-government.run();       // Alice is caught! but...
+});
+government.run(); // Alice is caught! but...
 
-person.set('Anonymous') // you get it! :)
-</code></pre>
-<p>Reactions can be destroyed, so they will not run after that:</p>
-<pre><code class="language-js">r.destroy()
-a.set(4)    // doesn't react to the change anymore
+person.set(&quot;Anonymous&quot;); // you get it! :)
 </code></pre>
 <h3 id="nested-reactions">Nested reactions</h3>
-<p>Since dipole version 2.2.0 reactions that get created while another reaction is executed become <strong>children</strong> of the parent reaction. Child reactions get automatically destroyed when parent is destroyed or run. </p>
-<p>Why is this needed? </p>
+<p>Since dipole version 2.2.0 reactions that get created while another reaction is executed become <strong>children</strong> of the parent reaction. Child reactions get automatically destroyed when parent is destroyed or run.</p>
+<p>Why is this needed?</p>
 <p>This behaviour enables building hierarchical constructs, where one reaction (say, router) creates another reaction (say, view or page), and changes that trigger router reaction automatically destroy view reaction, so all related resources could be freed.</p>
 <p>For more context, see <a href="https://github.com/zheksoon/dipole/issues/5">this issue</a>.</p>
 <p>In case you want intentially create a reaction without parent, just do it inside untracked transaction:</p>
@@ -300,18 +308,19 @@ a.set(4)    // doesn't react to the change anymore
 <h3 id="advanced-reaction-usage">Advanced reaction usage</h3>
 <p>Advanced reaction usage with reaction context and manager argument:</p>
 <pre><code class="language-js">const delayed = reaction(
-    () =&gt; console.log(counter.get()),   // reaction body
-    null,                   // reaction context (`this` for reaction body)
-    () =&gt; setTimeout(() =&gt; delayed.run(), 1000)  // reaction manager, should manage to run `.run()` method somehow
-)
-delayed.run()   // prints '3'
-counter.set(4)  // prints '4' after 1 second
+    () =&gt; console.log(counter.get()), // reaction body
+    null, // reaction context (`this` for reaction body)
+    () =&gt; setTimeout(() =&gt; delayed.run(), 1000) // reaction manager, should manage to run `.run()` method somehow
+);
+delayed.run(); // prints '3'
+counter.set(4); // prints '4' after 1 second
 </code></pre>
 <h3 id="limitations">Limitations</h3>
-<p>Please avoid changing reaction's dependencies inside reaction body - this will cause reaction running in an infinite loop:</p>
-<pre><code class="language-js">const forever = reaction(() =&gt; counter.set(counter.get() + 1))
-forever.run()   // never ends
+<p>Before dipole v2.5.0 changing reaction dependencies caused the reaction running in infinite loop:</p>
+<pre><code class="language-js">const forever = reaction(() =&gt; counter.set(counter.get() + 1));
+forever.run(); // never ends
 </code></pre>
+<p>Since v2.5.0 there is <a href="/api/#maxreactioniterations"><code>maxReactionIterations</code> option</a> in global config, so by default it will break the execution of the endless loop after 100 iterations.</p>
 <h2 id="reaction-utilities">Reaction utilities</h2>
 <p>There are two utility functions that can help is some cases:</p>
 <ul>
@@ -321,10 +330,12 @@ forever.run()   // never ends
 
 const r = when(
     () =&gt; cond.get(),
-    () =&gt; { console.log(&quot;Condition is true&quot;) }
+    () =&gt; {
+        console.log(&quot;Condition is true&quot;);
+    }
 );
 
-cond.set(true);  // prints &quot;Condition is true&quot;
+cond.set(true); // prints &quot;Condition is true&quot;
 cond.set(false); // doesn't print
 </code></pre>
 <ul>
@@ -334,71 +345,73 @@ cond.set(false); // doesn't print
 
 const r = once(
     () =&gt; cond.get(),
-    () =&gt; { console.log(&quot;Condition is true&quot;) }
+    () =&gt; {
+        console.log(&quot;Condition is true&quot;);
+    }
 );
 
-cond.set(true);  // prints &quot;Condition is true&quot;
+cond.set(true); // prints &quot;Condition is true&quot;
 cond.set(false); // doesn't print
-cond.set(true);  // doesn't print too
+cond.set(true); // doesn't print too
 </code></pre>
 <p>In all cases, <code>when()</code> and <code>once()</code> will run body if condition is initially set to <code>true</code>.</p>
 <p>Returned object is <code>Reaction</code> instance, so it could be destroyed or run again as usual reaction.</p>
 <h2 id="observable-utilities">Observable utilities</h2>
 <p>Using <code>makeObservable</code> helper it's easy to convert observable properties on some object into convenient getters and setters:</p>
-<pre><code class="language-js">const counter = makeObservable({ count: observable(0) })
+<pre><code class="language-js">const counter = makeObservable({ count: observable(0) });
 
-counter.count     // return 0
-counter.count = 5 // sets observable to 5
+counter.count; // return 0
+counter.count = 5; // sets observable to 5
 </code></pre>
 <p>Or the same with classes:</p>
 <pre><code class="language-js">class Counter {
-  count = observable(0)
+    count = observable(0);
 
-  constructor() {
-    makeObservable(this)
-  }
+    constructor() {
+        makeObservable(this);
+    }
 }
 
-const counter = new Counter()
+const counter = new Counter();
 </code></pre>
 <p>Only object's own properties <a href="../api/#makeobservableobject">are converted</a>.</p>
 <p>(You may also have noticed that code from <a href="../examples/">Examples</a> section uses <code>observable.prop</code> instead of <code>observable</code> for defining fields - in fact, it's exactly the same function, the only difference is <a href="https://github.com/zheksoon/dipole/blob/master/src/index.d.ts#L30">its Typescript definition</a>: type of <code>observable.prop(T)</code> is <code>T</code>, while type of <code>observable(T)</code> is <code>Observable&lt;T&gt;</code>)</p>
 <p>There are also few helper functions designed to work with <code>makeObservable</code>: <a href="../api/#fromgetterthunk">fromGetter</a> and <a href="../api/#notifythunk">notify</a>.</p>
 <h2 id="extra-value-checked-observables-and-computeds">Extra: value-checked observables and computeds</h2>
-<p>By default, observables and computeds never touch the values they store, so they can't know if the assigned or computed value has changed. It's convinient for the most cases, but sometimes might lead to unnecessarily reactions or expensive computations you might want to eliminate. </p>
+<p>By default, observables and computeds never touch the values they store, so they can't know if the assigned or computed value has changed. It's convinient for the most cases, but sometimes might lead to unnecessarily reactions or expensive computations you might want to eliminate.</p>
 <p>Observables and computeds receive an second <code>options</code> parameter, which can contain <code>checkValue</code> function, which receives previous and new values and returns a boolean equality result. If the result is <code>true</code>, no further recomputations of dependant computeds or reactions is done. Here's an example:</p>
 <pre><code class="language-js">// simple comparison function
 const checkValue = (prev, next) =&gt; prev === next;
 
 // pass the checkValue function to observable
-const counter = observable(1, { checkValue }); 
+const counter = observable(1, { checkValue });
 
 // pass the checkValue function to computed
 const absolute = computed(
     () =&gt; {
-        console.log('computing absolute');
+        console.log(&quot;computing absolute&quot;);
         return Math.abs(counter.get());
     },
-    { checkValue }, 
+    { checkValue }
 );
 
 // regular computed without value check
-const doubleAbsolute = computed(() =&gt; {             
-    console.log('computing double')
+const doubleAbsolute = computed(() =&gt; {
+    console.log(&quot;computing double&quot;);
     return absolute.get() * 2;
 });
 
 const printer = reaction(() =&gt; {
-    console.log('result is', doubleAbsolute.get());
+    console.log(&quot;result is&quot;, doubleAbsolute.get());
 });
 
 // first run, prints 'computing absolute' and 'computing double'
-printer.run();  
+printer.run();
 
 // checkValue is called for observable, no computeds are recalculated, reaction doesn't run
-counter.set(1); 
+counter.set(1);
 
-// prints 'computing absolute' and calls checkValue for computed, 
+// prints 'computing absolute' and calls checkValue for computed,
 // doubleAbsolute computed is not recalculated and reaction doesn't run
 counter.set(-1);
 </code></pre>
