@@ -1,4 +1,5 @@
-import { glob, endTransaction } from "./globals";
+import { glob } from "./globals/variables";
+import { endTransaction } from "./schedulers/reaction";
 
 // Transaction (TX)
 export function tx(thunk: () => any): void {
@@ -21,10 +22,11 @@ export function utx<T>(fn: () => T): T {
     try {
         return fn();
     } finally {
+        glob.gSubscriberContext = oldSubscriberContext;
+
         if (--glob.gTransactionDepth === 0) {
             endTransaction();
         }
-        glob.gSubscriberContext = oldSubscriberContext;
     }
 }
 
@@ -50,10 +52,11 @@ export function action<Args extends any[], Result>(
         try {
             return fn.apply(this, arguments as unknown as Args);
         } finally {
+            glob.gSubscriberContext = oldSubscriberContext;
+
             if (--glob.gTransactionDepth === 0) {
                 endTransaction();
             }
-            glob.gSubscriberContext = oldSubscriberContext;
         }
     };
 }

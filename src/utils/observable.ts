@@ -1,4 +1,5 @@
-import { Observable, Computed } from "../core/classes";
+import { Observable } from "../core/classes/observable";
+import { Computed } from "../core/classes/computed";
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 

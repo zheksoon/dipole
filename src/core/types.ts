@@ -1,4 +1,4 @@
-import { State } from "./common";
+import { State } from "./constants";
 
 export type SubscriberState = typeof State.MAYBE_DIRTY | typeof State.DIRTY;
 
