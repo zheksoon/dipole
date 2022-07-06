@@ -1,10 +1,10 @@
-const {
+import { AnySubscriber } from "../src/core/types";
+import {
     observable,
     Observable,
     computed,
     Computed,
     reaction,
-    Reaction,
     tx,
     action,
     utx,
@@ -15,16 +15,29 @@ const {
     when,
     once,
     configure,
-} = require("../dist/index.js");
+    IComputed,
+    IObservable,
+    IReaction,
+    IGettable,
+} from "../src/index";
+
+type IObservableImpl<T> = IObservable<T> & {
+    _subscribers: Set<AnySubscriber>;
+    _checkValueFn: (a: T, b: T) => boolean;
+};
+type IComputedImpl<T> = IComputed<T> & {
+    _subscribers: Set<AnySubscriber>;
+    _checkValueFn: (a: T, b: T) => boolean;
+};
 
 let trackedUpdatesCounter = new WeakMap();
 
-function trackUpdate(owner) {
+function trackUpdate(owner: any) {
     const value = trackedUpdatesCounter.get(owner) || 0;
     trackedUpdatesCounter.set(owner, value + 1);
 }
 
-function trackedUpdates(owner) {
+function trackedUpdates(owner: any) {
     return trackedUpdatesCounter.get(owner) || 0;
 }
 
@@ -35,7 +48,7 @@ beforeEach(() => {
 describe("Observable tests", () => {
     test("creates observable", () => {
         expect(() => {
-            observable();
+            observable(undefined);
             observable(0);
             observable(1);
             observable(false);
@@ -64,11 +77,6 @@ describe("Observable tests", () => {
     });
 
     describe("checkValue option", () => {
-        test("create observable with checkValue option", () => {
-            const o = observable(0, { checkValue: (a, b) => a == b });
-            expect(o._checkValueFn).not.toBeNull();
-        });
-
         test("don't trigger subscribers invalidation when check is true", () => {
             const o1 = observable(0, { checkValue: (a, b) => a == b });
             const c1 = computed(() => {
@@ -89,7 +97,7 @@ describe("Observable tests", () => {
     });
 
     test("observable.prop returns instance of Observable", () => {
-        const o1 = observable.prop(1);
+        const o1 = observable.prop(1) as unknown as Observable<number>;
         expect(o1).toBeInstanceOf(Observable);
         expect(o1.get()).toBe(1);
     });
@@ -295,7 +303,7 @@ describe("Computed tests", () => {
 
     test("invalidated by conditional computed dependence (many)", () => {
         const obs = new Array(128).fill(0).map((_, i) => observable(i));
-        const comp = obs.map((o, i) => computed(() => o.get()));
+        const comp = obs.map((o) => computed(() => o.get()));
         const selector = observable(0);
         const value = computed(() => {
             return comp[selector.get()].get();
@@ -314,7 +322,7 @@ describe("Computed tests", () => {
     });
 
     test("throws when has recursive dependencies", () => {
-        const c1 = computed(() => {
+        const c1: IComputed<number> = computed(() => {
             return c1.get() * 2;
         });
 
@@ -324,11 +332,11 @@ describe("Computed tests", () => {
     });
 
     test("throws when has recursive dependencies", () => {
-        const c1 = computed(() => {
+        const c1: IComputed<number> = computed<number>(() => {
             return c2.get() * 2;
         });
 
-        const c2 = computed(() => {
+        const c2: IComputed<number> = computed(() => {
             return c1.get() + 1;
         });
 
@@ -390,7 +398,7 @@ describe("Computed tests", () => {
     });
 
     test("destroy method invalidates computed", () => {
-        const o = observable(1);
+        const o = observable(1) as IObservableImpl<number>;
         const c = computed(() => {
             trackUpdate(c);
             return o.get() + 1;
@@ -407,10 +415,10 @@ describe("Computed tests", () => {
     });
 
     describe("checkValue option", () => {
-        const checkValue = (a, b) => a == b;
+        const checkValue = (a: any, b: any) => a == b;
 
         test("creates computed with checkValue option", () => {
-            const c1 = computed(() => {}, { checkValue });
+            const c1 = computed(() => {}, { checkValue }) as IComputedImpl<void>;
             expect(c1._checkValueFn).not.toBeNull();
         });
 
@@ -832,7 +840,7 @@ describe("Computed tests", () => {
         test("performance (1000 value computed chain)", () => {
             const o1 = observable(0);
 
-            let startValue = o1;
+            let startValue = o1 as IGettable<number>;
             for (let i = 0; i < 1000; i++) {
                 let value = startValue;
                 startValue = computed(() => value.get() + 1, { checkValue });
@@ -865,7 +873,7 @@ describe("Computed tests", () => {
                     return o1.get() + o2.get();
                 },
                 { checkValue }
-            );
+            ) as IComputedImpl<number>;
 
             c1.get();
             expect(trackedUpdates(c1)).toBe(1);
@@ -877,8 +885,8 @@ describe("Computed tests", () => {
     });
 
     test("computed.prop returns instance of Computed", () => {
-        const o1 = observable.prop(1);
-        const c1 = computed.prop(() => o1.get() + 1);
+        const o1 = observable.prop(1) as unknown as IObservable<number>;
+        const c1 = computed.prop(() => o1.get() + 1) as unknown as IComputed<number>;
         expect(c1).toBeInstanceOf(Computed);
         expect(c1.get()).toBe(2);
     });
@@ -916,7 +924,7 @@ describe("Reaction tests", () => {
 
     test("passes arguments to reaction body", () => {
         let a;
-        const r = reaction((...args) => {
+        const r = reaction((...args: [number, number, string]) => {
             a = args;
         });
         r.run(1, 2, "a");
@@ -1122,7 +1130,7 @@ describe("Reaction tests", () => {
 
             const r1 = reaction(() => {
                 trackUpdate(r1);
-                
+
                 if (o1.get() < 2) {
                     throw new Error("Error");
                 }
@@ -1152,7 +1160,7 @@ describe("Reaction tests", () => {
             const o1 = observable(0);
             const o2 = observable(123);
             const c1 = computed(() => o1.get() + 1);
-    
+
             let result;
             const r1 = reaction(() => {
                 if (c1.get() < 2) {
@@ -1160,21 +1168,21 @@ describe("Reaction tests", () => {
                 }
                 result = o2.get();
             });
-    
+
             expect(() => {
                 r1.run();
             }).toThrow();
-    
+
             expect(() => {
                 o1.set(1); // the reaction doesn't run because it's screwed by exception
             }).not.toThrow();
-    
+
             expect(() => {
                 r1.run(); // the reaction doesn't throw now and recovers from exception
             }).not.toThrow();
-    
+
             expect(result).toBe(123);
-    
+
             o2.set(456);
             expect(result).toBe(456);
         });
@@ -1237,7 +1245,7 @@ describe("Reaction tests", () => {
     });
 
     test("reaction runs in the end of transaction when value-checked computed triggers it", () => {
-        const checkValue = (a, b) => a == b;
+        const checkValue = (a: any, b: any) => a == b;
 
         const o1 = observable(1);
         const c1 = computed(() => o1.get() * 2, { checkValue });
@@ -1279,7 +1287,7 @@ describe("Reaction tests", () => {
         test("nested reaction is destroyed when parent is destroyed", () => {
             const o1 = observable(1);
             const o2 = observable(2);
-            let r2;
+            let r2: IReaction<null, [], void> | null = null;
             const r1 = reaction(() => {
                 o1.get();
                 trackUpdate(r1);
@@ -1312,7 +1320,7 @@ describe("Reaction tests", () => {
         test("nested reaction is destroyed when parent runs", () => {
             const o1 = observable(1);
             const o2 = observable(2);
-            let r2;
+            let r2: IReaction<null, [], void> | null = null;
             const r1 = reaction(() => {
                 o1.get();
                 trackUpdate(r1);
@@ -1356,7 +1364,7 @@ describe("Reaction tests", () => {
         test("reaction doesn't get parent when created inside utx", () => {
             const o1 = observable(1);
             const o2 = observable(2);
-            let r2;
+            let r2: IReaction<null, [], void> | null = null;
             const r1 = reaction(() => {
                 o1.get();
                 trackUpdate(r1);
@@ -1387,7 +1395,7 @@ describe("Reaction tests", () => {
         test("nested reaction is doesn't run when parent runs", () => {
             const o1 = observable(1);
             const o2 = observable(2);
-            let r2;
+            let r2: IReaction<null, [], void> | null = null;
             const r1 = reaction(() => {
                 o1.get();
                 trackUpdate(r1);
@@ -1425,7 +1433,7 @@ describe("Reaction tests", () => {
     describe("reaction options", () => {
         test("accepts options argument", () => {
             expect(() => {
-                reaction(() => {}, null, null, { autocommitSubscriptions: true });
+                reaction(() => {}, null, undefined, { autocommitSubscriptions: true });
             }).not.toThrow();
         });
 
@@ -1439,7 +1447,7 @@ describe("Reaction tests", () => {
                         trackUpdate(r1);
                     },
                     null,
-                    null,
+                    undefined,
                     { autocommitSubscriptions: true }
                 );
 
@@ -1459,7 +1467,7 @@ describe("Reaction tests", () => {
                         trackUpdate(r1);
                     },
                     null,
-                    null,
+                    undefined,
                     { autocommitSubscriptions: false }
                 );
 
@@ -1485,7 +1493,7 @@ describe("Reaction tests", () => {
                         trackUpdate(r1);
                     },
                     null,
-                    null,
+                    undefined,
                     { autocommitSubscriptions: false }
                 );
 
@@ -1520,7 +1528,7 @@ describe("Reaction tests", () => {
                         trackUpdate(r1);
                     },
                     null,
-                    null,
+                    undefined,
                     { autocommitSubscriptions: false }
                 );
 
@@ -1758,7 +1766,7 @@ describe("Actions and untracked transactions", () => {
 
         let actionThis;
         const host = {
-            ac: action(function () {
+            ac: action(function (this: any) {
                 actionThis = this;
             }),
         };
@@ -1847,9 +1855,9 @@ describe("makeObservable and related functions", () => {
         });
 
         test("makeObservable converts observable and computed on plain object", () => {
-            const o = makeObservable({
-                a: observable(1),
-                b: computed(() => o.a + 1),
+            const o: { a: number; b: number } = makeObservable({
+                a: observable.prop(1),
+                b: computed.prop(() => o.a + 1),
             });
             let c;
             const r = reaction(() => {
@@ -1863,8 +1871,8 @@ describe("makeObservable and related functions", () => {
 
         test("makeObservable converts observable and computed on class objects", () => {
             class C {
-                a = observable(1);
-                b = computed(() => this.a + 1);
+                a = observable.prop(1);
+                b = computed.prop(() => this.a + 1);
 
                 constructor() {
                     makeObservable(this);
@@ -1881,8 +1889,8 @@ describe("makeObservable and related functions", () => {
             expect(c).toBe(3);
         });
 
-        test("makeObservable only affects own properrties", () => {
-            const o = makeObservable({
+        test("makeObservable only affects own properties", () => {
+            const o: any = makeObservable({
                 a: observable(1),
                 __proto__: {
                     b: observable(2),
@@ -1893,11 +1901,12 @@ describe("makeObservable and related functions", () => {
         });
 
         test("makeObservable doesn't add setter for computed", () => {
-            const o = makeObservable({
+            const o: any = makeObservable({
                 a: observable(1),
                 b: computed(() => o.a + 1),
             });
-            expect(() => (o.b = 20)).not.toThrow();
+            // will throw in strict mode only
+            expect(() => (o.b = 20)).toThrow();
             // check o.b is still a computed
             expect(o.b).toBe(2);
             o.a = 5;
@@ -1905,7 +1914,7 @@ describe("makeObservable and related functions", () => {
         });
 
         test("makeObservable doesn't change behaviour if applied twice (objects)", () => {
-            const o = makeObservable(
+            const o: any = makeObservable(
                 makeObservable({
                     a: observable(1),
                     b: computed(() => o.a + 1),
@@ -1924,8 +1933,8 @@ describe("makeObservable and related functions", () => {
 
         test("makeObservable doesn't change behaviour if applied twice (classes inheritance)", () => {
             class A {
-                a = observable(1);
-                b = computed(() => this.a + 1);
+                a = observable.prop(1);
+                b = computed.prop(() => this.a + 1);
 
                 constructor() {
                     makeObservable(this);
@@ -1964,6 +1973,8 @@ describe("makeObservable and related functions", () => {
     describe("makeObservableProto", () => {
         test("doesn't throw on empty object", () => {
             class A {
+                a: number;
+
                 constructor() {
                     this.a = 1;
                     makeObservableProto(this, A, {});
@@ -1975,8 +1986,13 @@ describe("makeObservable and related functions", () => {
 
         test("doesn't add own enumerable properties on object", () => {
             class A {
+                a: number;
+                b: number;
+                c: number;
+
                 constructor() {
                     this.a = 1;
+
                     makeObservableProto(this, A, {
                         b: observable(2),
                         c: computed(() => this.a + this.b),
@@ -1995,6 +2011,9 @@ describe("makeObservable and related functions", () => {
 
         test("creates getters and setters for observables", () => {
             class A {
+                a: number;
+                b: number;
+
                 constructor() {
                     makeObservableProto(this, A, {
                         a: observable(1),
@@ -2022,6 +2041,10 @@ describe("makeObservable and related functions", () => {
 
         test("creates getters for computed values", () => {
             class A {
+                a: number;
+                b: number;
+                c: number;
+
                 constructor() {
                     makeObservableProto(this, A, {
                         a: observable(1),
@@ -2045,13 +2068,18 @@ describe("makeObservable and related functions", () => {
 
             obj.a = 4;
             expect(res).toBe(6);
-
-            expect(() => (obj.c = 100)).not.toThrow();
+            
+            // will throw in strict mode only
+            expect(() => (obj.c = 100)).toThrow();
             expect(res).toBe(6);
         });
 
         test("works in inheritance case", () => {
             class A {
+                a: number;
+                b: number;
+                c: number;
+
                 constructor() {
                     this.a = 1;
                     makeObservableProto(this, A, {
@@ -2062,6 +2090,10 @@ describe("makeObservable and related functions", () => {
             }
 
             class B extends A {
+                d: number;
+                e: number;
+                f: number;
+
                 constructor() {
                     super();
                     this.d = 4;
@@ -2072,8 +2104,8 @@ describe("makeObservable and related functions", () => {
                 }
             }
 
-            const a = new A();
-            const b = new B();
+            const a = new A() as any;
+            const b = new B() as any;
 
             expect(Object.keys(a)).toStrictEqual(["a"]);
             expect(Object.keys(b)).toStrictEqual(["a", "d"]);
@@ -2093,11 +2125,15 @@ describe("makeObservable and related functions", () => {
 
         test("throws when object value is not observable or computed instance", () => {
             class A {
+                a: number;
+                b: number;
+                c: string;
+
                 constructor() {
                     makeObservableProto(this, A, {
                         a: observable(1),
                         b: computed(() => this.a),
-                        c: "hello kitty",
+                        c: "hello kitty" as any,
                     });
                 }
             }
@@ -2108,6 +2144,10 @@ describe("makeObservable and related functions", () => {
         test("Work with symbols", () => {
             const S = Symbol("test");
             class A {
+                a: number;
+                b: number;
+                [S]: number;
+
                 constructor() {
                     makeObservableProto(this, A, {
                         a: observable(1),
@@ -2130,8 +2170,8 @@ describe("makeObservable and related functions", () => {
 
         test("notify calls .notify() on observables accessed in thunk fn", () => {
             const o = makeObservable({
-                a: observable(1),
-                b: observable(2),
+                a: observable.prop(1),
+                b: observable.prop(2),
             });
             const c = computed(() => {
                 trackUpdate(c);
@@ -2206,8 +2246,8 @@ describe("makeObservable and related functions", () => {
 
 describe("Background subscribers check", () => {
     test("it unsubscribers computed from subscriptions when there is no subscribers", async () => {
-        const o = observable(1);
-        const c = computed(() => o.get() * 2);
+        const o = observable(1) as IObservableImpl<number>;
+        const c = computed(() => o.get() * 2) as IComputedImpl<number>;
 
         const flag = observable(true);
         const r = reaction(() => {
@@ -2326,8 +2366,8 @@ describe("Global options", () => {
                 configure({ subscribersCheckInterval: 100 });
             }).not.toThrow();
 
-            const o = observable(1);
-            const c = computed(() => o.get() * 2);
+            const o = observable(1) as IObservableImpl<number>;
+            const c = computed(() => o.get() * 2) as IComputedImpl<number>;
 
             const flag = observable(true);
             const r = reaction(() => {

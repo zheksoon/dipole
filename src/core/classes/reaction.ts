@@ -6,6 +6,7 @@ import {
     AnyComputed,
     AnyReaction,
     AnySubscription,
+    IReaction,
     IReactionImpl,
     IReactionOptions,
     SubscriberState,
@@ -165,6 +166,6 @@ export function reaction<Ctx, Params extends any[], Result>(
     context?: Ctx,
     manager?: () => void,
     options?: IReactionOptions
-) {
+): IReaction<Ctx, Params, Result> {
     return new Reaction(reactor, context, manager, options);
 }
