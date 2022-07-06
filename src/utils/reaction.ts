@@ -1,5 +1,5 @@
-import { reaction } from "../core/classes";
-import { IReaction } from "../core/classes/types";
+import { reaction } from "../core/classes/reaction";
+import { IReaction } from "../core/types";
 import { utx } from "../core/transaction";
 
 export function when(conditionFn: () => boolean, body: () => unknown): IReaction<null, [], void> {

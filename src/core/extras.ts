@@ -1,6 +1,6 @@
-import { Observable } from "./classes";
-import { AnySubscription, IComputed, IObservable } from "./classes/types";
-import { glob } from "./globals";
+import { AnySubscription, IComputed, IObservable } from "./types";
+import { Observable } from "../core/classes/observable";
+import { GlobalVars, glob } from "./globals/variables";
 import { tx } from "./transaction";
 
 type SpecialContext<Type> = object & { _type: Type };
@@ -14,17 +14,18 @@ let gGettersSpyResult: undefined | IObservable<unknown> | IComputed<unknown> = u
 const gettersSpyContext = {} as GettersSpyContext;
 const gettersNotifyContext = {} as NotifyContext;
 
-export function checkSpecialContexts(self: AnySubscription) {
-    const { gSubscriberContext } = glob;
-
-    if (gSubscriberContext === gettersSpyContext) {
-        gGettersSpyResult = self;
+export function checkSpecialContexts(
+    context: GlobalVars["gSubscriberContext"],
+    target: AnySubscription
+): context is (GettersSpyContext | NotifyContext) {
+    if (context === gettersSpyContext) {
+        gGettersSpyResult = target;
         return true;
     }
 
-    if (gSubscriberContext === gettersNotifyContext) {
-        if (self instanceof Observable) {
-            self.notify();
+    if (context === gettersNotifyContext) {
+        if (target instanceof Observable) {
+            target.notify();
             return true;
         } else {
             throw new Error("Trying to notify not Observable instance");

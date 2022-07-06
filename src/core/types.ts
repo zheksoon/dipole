@@ -1,5 +1,5 @@
-import { IHashable } from "../data-structures/hash-set";
-import { State } from "./common";
+import { IHashable } from "./data-structures/hash-set";
+import { State } from "./constants";
 
 export type SubscriberState = typeof State.MAYBE_DIRTY | typeof State.DIRTY;
 

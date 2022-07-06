@@ -1,4 +1,6 @@
-import { Observable, Computed } from "../core/classes";
+import { Observable } from "../core/classes/observable";
+import { Computed } from "../core/classes/computed";
+import { IObservable, IComputed } from "../core/types";
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -49,7 +51,7 @@ export function asProp<T>(value: Observable<T> | Computed<T>): T {
 }
 
 type ObservableProps<T extends object> = {
-    [K in keyof T]?: Observable<T[K]> | Computed<T[K]>;
+    [K in keyof T]?: IObservable<T[K]> | IComputed<T[K]>;
 };
 
 const isSymbolAvailable = typeof Symbol !== "undefined";

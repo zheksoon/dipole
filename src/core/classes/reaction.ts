@@ -1,14 +1,17 @@
-import { glob, scheduleStateActualization, scheduleReaction, endTransaction } from "../globals";
+import { glob } from "../globals/variables";
 import { randomInt } from "../utils/random";
-import { State } from "./common";
+import { scheduleReaction, endTransaction } from "../schedulers/reaction";
+import { scheduleStateActualization } from "../schedulers/stateActualization";
+import { State } from "../constants";
 import {
     AnyComputed,
     AnyReaction,
     AnySubscription,
+    IReaction,
     IReactionImpl,
     IReactionOptions,
     SubscriberState,
-} from "./types";
+} from "../types";
 
 type Options = {
     autocommitSubscriptions: boolean;
@@ -57,14 +60,14 @@ export class Reaction<Ctx, Params extends any[], Result>
         this._children = null;
         this._options = getReactionOptions(options);
 
-        const { gSubscriberContext } = glob;
-        if (gSubscriberContext !== null && gSubscriberContext instanceof Reaction) {
-            gSubscriberContext._addChild(this);
+        const subscriberContext = glob.gSubscriberContext;
+        if (subscriberContext !== null && subscriberContext instanceof Reaction) {
+            subscriberContext._addChild(this);
         }
     }
 
     _addChild(child: AnyReaction): void {
-        (this._children || (this._children = [])).push(child);
+        (this._children ||= []).push(child);
     }
 
     _destroyChildren(): void {
@@ -135,11 +138,10 @@ export class Reaction<Ctx, Params extends any[], Result>
             return this._reaction.apply(this._context!, arguments as unknown as Params);
         } finally {
             glob.gSubscriberContext = oldSubscriberContext;
-            // if we are about to end all transactions, run the rest of reactions inside it
-            if (glob.gTransactionDepth === 1) {
+            
+            if (--glob.gTransactionDepth === 0) {
                 endTransaction();
-            }
-            --glob.gTransactionDepth;
+            };
         }
     }
 
@@ -167,6 +169,6 @@ export function reaction<Ctx, Params extends any[], Result>(
     context?: Ctx,
     manager?: () => void,
     options?: IReactionOptions
-) {
+): IReaction<Ctx, Params, Result> {
     return new Reaction(reactor, context, manager, options);
 }

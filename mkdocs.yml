@@ -9,4 +9,6 @@ nav:
   - Introduction: introduction.md
   - Examples: examples.md
   - API reference: api.md
+markdown_extensions:
+  - admonition
    

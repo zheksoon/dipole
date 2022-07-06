@@ -1,9 +1,10 @@
 import { untracked } from "../transaction";
-import { glob, scheduleSubscribersCheck } from "../globals";
 import { HashSet } from "../data-structures/hash-set";
-import { checkSpecialContexts } from "../extras";
 import { randomInt } from "../utils/random";
-import { State, trackSubscriberContext } from "./common";
+import { checkSpecialContexts } from "../extras";
+import { State } from "../constants";
+import { glob } from "../globals/variables";
+import { scheduleSubscribersCheck } from "../schedulers/subscribersCheck";
 import {
     AnyComputed,
     AnySubscriber,
@@ -12,7 +13,7 @@ import {
     IComputedImpl,
     IComputedOptions,
     SubscriberState,
-} from "./types";
+} from "../types";
 
 type Options<T> = {
     checkValueFn: null | ((prevValue: T, nextValue: T) => boolean);
@@ -67,12 +68,15 @@ export class Computed<T> implements IComputedImpl<T> {
         if (this._state === State.COMPUTING) {
             throw new Error("Trying to get computed value while in computing state");
         }
+        
+        const context = glob.gSubscriberContext;
 
-        if (!checkSpecialContexts(this)) {
+        if (!checkSpecialContexts(context, this)) {
             this._actualizeAndRecompute();
-            trackSubscriberContext(this);
 
-            if (glob.gSubscriberContext === null) {
+            if (context !== null) {
+                context._subscribeTo(this);
+            } else {
                 this._checkSubscribers();
             }
         }

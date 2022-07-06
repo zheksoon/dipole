@@ -1,16 +1,16 @@
-import { glob, endTransaction } from "../globals";
 import { Computed } from "./computed";
-import { State, trackSubscriberContext } from "./common";
+import { State } from "../constants";
 import { checkSpecialContexts } from "../extras";
 import { HashSet } from "../data-structures/hash-set";
-
+import { glob } from "../globals/variables";
+import { endTransaction } from "../schedulers/reaction";
 import {
     AnySubscriber,
     IObservable,
     IObservableImpl,
     IObservableOptions,
     SubscriberState,
-} from "./types";
+} from "../types";
 
 type Options<T> = {
     checkValueFn: null | ((prevValue: T, nextValue: T) => boolean);
@@ -42,8 +42,10 @@ export class Observable<T> implements IObservableImpl<T> {
     }
 
     get(): T {
-        if (!checkSpecialContexts(this)) {
-            trackSubscriberContext(this);
+        const context = glob.gSubscriberContext;
+
+        if (context !== null && !checkSpecialContexts(context, this)) {
+            context._subscribeTo(this);
         }
         return this._value;
     }
