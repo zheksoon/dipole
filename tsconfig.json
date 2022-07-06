@@ -9,5 +9,6 @@
         "noUnusedParameters": true /* Raise an error when a function parameter isn't read */,
         "skipLibCheck": true /* Skip type checking all .d.ts files. */,
         "strictPropertyInitialization": false,
+        "preserveConstEnums": false
     }
 }

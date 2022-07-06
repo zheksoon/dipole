@@ -30,9 +30,9 @@ function getObservableOptions<T>(options?: IObservableOptions<T>): Options<T> {
 }
 
 export class Observable<T> implements IObservableImpl<T> {
-    private _subscribers: Set<AnySubscriber>;
-    private _value: T;
-    private _options: Options<T>;
+    declare private _subscribers: Set<AnySubscriber>;
+    declare private _value: T;
+    declare private _options: Options<T>;
 
     constructor(value: T, options?: IObservableOptions<T>) {
         this._subscribers = new Set();

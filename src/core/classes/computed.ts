@@ -19,11 +19,11 @@ type Options<T> = {
 };
 
 type ComputedState =
-    | typeof State.NOT_INITIALIZED
-    | typeof State.CLEAN
-    | typeof State.COMPUTING
-    | typeof State.MAYBE_DIRTY
-    | typeof State.DIRTY;
+    | State.NOT_INITIALIZED
+    | State.CLEAN
+    | State.COMPUTING
+    | State.MAYBE_DIRTY
+    | State.DIRTY;
 
 function getComputedOptions<T>(options?: IComputedOptions<T>): Options<T> {
     const defaultOptions: Options<T> = {
@@ -42,13 +42,13 @@ function getComputedOptions<T>(options?: IComputedOptions<T>): Options<T> {
 }
 
 export class Computed<T> implements IComputedImpl<T> {
-    private _subscribers: Set<AnySubscriber>;
-    private _value: undefined | T;
-    private _options: Options<T>;
-    private _state: ComputedState;
-    private _computer: () => T;
-    private _subscriptions: AnySubscription[];
-    private _maybeDirtySubscriptions: null | AnyComputed[];
+    declare private _subscribers: Set<AnySubscriber>;
+    declare private _value: undefined | T;
+    declare private _options: Options<T>;
+    declare private _state: ComputedState;
+    declare private _computer: () => T;
+    declare private _subscriptions: AnySubscription[];
+    declare private _maybeDirtySubscriptions: null | AnyComputed[];
 
     constructor(computer: () => T, options?: IComputedOptions<T>) {
         this._subscribers = new Set();

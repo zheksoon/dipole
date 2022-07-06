@@ -1,6 +1,6 @@
 import { State } from "./constants";
 
-export type SubscriberState = typeof State.MAYBE_DIRTY | typeof State.DIRTY;
+export type SubscriberState = State.MAYBE_DIRTY | State.DIRTY;
 
 export interface IObservableOptions<T> {
     checkValue?: (prevValue: T, nextValue: T) => boolean;
