@@ -57,14 +57,14 @@ export class Reaction<Ctx, Params extends any[], Result>
         this._children = null;
         this._options = getReactionOptions(options);
 
-        const { gSubscriberContext } = glob;
-        if (gSubscriberContext !== null && gSubscriberContext instanceof Reaction) {
-            gSubscriberContext._addChild(this);
+        const subscriberContext = glob.gSubscriberContext;
+        if (subscriberContext !== null && subscriberContext instanceof Reaction) {
+            subscriberContext._addChild(this);
         }
     }
 
     _addChild(child: AnyReaction): void {
-        (this._children || (this._children = [])).push(child);
+        (this._children ||= []).push(child);
     }
 
     _destroyChildren(): void {
