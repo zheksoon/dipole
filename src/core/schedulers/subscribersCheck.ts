@@ -1,30 +1,44 @@
 import { AnyComputed } from "../types";
-import { gConfig } from "../globals/config";
+import { DebounceQueue, ImmediateQueue } from "../dataStructures/debounceQueue";
+import { defaultSubscribersCheckInterval } from "../globals/defaults";
 
-let gScheduledSubscribersChecks: Set<AnyComputed> = new Set();
-let gScheduledSubscribersCheckTimeout: ReturnType<typeof setTimeout> | null = null;
+let gSubscribersCheckQueue: ImmediateQueue<AnyComputed> | DebounceQueue<AnyComputed> =
+    new DebounceQueue(subscribersCheckCallback, defaultSubscribersCheckInterval);
 
-export function scheduleSubscribersCheck(computed: AnyComputed) {
-    gScheduledSubscribersChecks.add(computed);
+let itemsToCheck: Set<AnyComputed> | null = null;
 
-    if (!gScheduledSubscribersCheckTimeout) {
-        gScheduledSubscribersCheckTimeout = setTimeout(
-            runScheduledSubscribersChecks,
-            gConfig.subscribersCheckInterval
-        );
-    }
-}
+function subscribersCheckCallback(computedsToCheck: Set<AnyComputed>) {
+    itemsToCheck = computedsToCheck;
 
-function runScheduledSubscribersChecks() {
-    gScheduledSubscribersChecks.forEach((computed) => {
-        // delete computed first because it might be reintroduced
-        // into the set later in the iteration by `_checkSubscribers` call
-        // it's safe to delete and add items into Set while iterating
-        gScheduledSubscribersChecks.delete(computed);
-
+    computedsToCheck.forEach((computed) => {
         if (!computed._hasSubscribers()) {
             computed.destroy();
         }
     });
-    gScheduledSubscribersCheckTimeout = null;
+
+    itemsToCheck = null;
+}
+
+export function scheduleSubscribersCheck(computed: AnyComputed) {
+    if (!itemsToCheck) {
+        gSubscribersCheckQueue.add(computed);
+    } else {
+        itemsToCheck.add(computed);
+    }
+}
+
+export function removeFromSubscribersCheck(computed: AnyComputed) {
+    gSubscribersCheckQueue.remove(computed);
+}
+
+export function triggerImmediateSubscribersCheck() {
+    gSubscribersCheckQueue.processImmediately();
+}
+
+export function setSubscribersCheckInterval(interval: number) {
+    if (interval === 0) {
+        gSubscribersCheckQueue = new ImmediateQueue(subscribersCheckCallback);
+    } else {
+        gSubscribersCheckQueue = new DebounceQueue(subscribersCheckCallback, interval);
+    }
 }

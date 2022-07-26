@@ -2,7 +2,10 @@ import { untracked } from "../transaction";
 import { checkSpecialContexts } from "../extras";
 import { State } from "../constants";
 import { glob } from "../globals/variables";
-import { scheduleSubscribersCheck } from "../schedulers/subscribersCheck";
+import {
+    scheduleSubscribersCheck,
+    removeFromSubscribersCheck,
+} from "../schedulers/subscribersCheck";
 import {
     AnyComputed,
     AnySubscriber,
@@ -64,7 +67,7 @@ export class Computed<T> implements IComputedImpl<T> {
         if (this._state === State.COMPUTING) {
             throw new Error("Trying to get computed value while in computing state");
         }
-        
+
         const context = glob.gSubscriberContext;
 
         if (!checkSpecialContexts(context, this)) {
@@ -197,7 +200,13 @@ export class Computed<T> implements IComputedImpl<T> {
 
     _addSubscriber(subscriber: AnySubscriber): boolean {
         const subscribers = this._subscribers;
-        return subscribers.size < subscribers.add(subscriber).size;
+        const subscribersSize = subscribers.size;
+
+        if (subscribersSize === 0) {
+            removeFromSubscribersCheck(this);
+        }
+
+        return subscribersSize < subscribers.add(subscriber).size;
     }
 
     _removeSubscriber(subscriber: AnySubscriber): void {
