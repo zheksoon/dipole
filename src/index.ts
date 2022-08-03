@@ -18,3 +18,5 @@ export { IConfig, configure } from "./core/globals/config";
 
 export { makeObservable, makeObservableProto, asProp } from "./utils/observable";
 export { when, once } from "./utils/reaction";
+
+export { DebounceQueue } from "./core/dataStructures/debounceQueue";

@@ -45,13 +45,13 @@ function getComputedOptions<T>(options?: IComputedOptions<T>): Options<T> {
 }
 
 export class Computed<T> implements IComputedImpl<T> {
-    declare private _subscribers: Set<AnySubscriber>;
-    declare private _value: undefined | T;
-    declare private _options: Options<T>;
-    declare private _state: ComputedState;
-    declare private _computer: () => T;
-    declare private _subscriptions: AnySubscription[];
-    declare private _maybeDirtySubscriptions: null | AnyComputed[];
+    private declare _subscribers: Set<AnySubscriber>;
+    private declare _value: undefined | T;
+    private declare _options: Options<T>;
+    private declare _state: ComputedState;
+    private declare _computer: () => T;
+    private declare _subscriptions: AnySubscription[];
+    private declare _maybeDirtySubscriptions: null | AnyComputed[];
 
     constructor(computer: () => T, options?: IComputedOptions<T>) {
         this._subscribers = new Set();
@@ -215,7 +215,7 @@ export class Computed<T> implements IComputedImpl<T> {
     }
 
     _hasSubscribers(): boolean {
-        return this._subscribers.size !== 0;
+        return this._subscribers.size > 0;
     }
 
     _checkSubscribers(): void {
