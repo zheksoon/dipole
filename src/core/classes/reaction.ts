@@ -35,13 +35,13 @@ function getReactionOptions(options?: IReactionOptions): Options {
 export class Reaction<Ctx, Params extends any[], Result>
     implements IReactionImpl<Ctx, Params, Result>
 {
-    declare private _reaction: (this: Ctx, ...args: Params) => Result;
-    declare private _context: Ctx | null;
-    declare private _manager: (() => void) | undefined;
-    declare private _state: ReactionState;
-    declare private _subscriptions: AnySubscription[];
-    declare private _children: null | AnyReaction[];
-    declare private _options: Options;
+    private declare _reaction: (this: Ctx, ...args: Params) => Result;
+    private declare _context: Ctx | null;
+    private declare _manager: (() => void) | undefined;
+    private declare _state: ReactionState;
+    private declare _ref: WeakRef<AnyReaction>;
+    private declare _children: null | AnyReaction[];
+    private declare _options: Options;
 
     constructor(
         reaction: (this: Ctx, ...args: Params) => Result,
@@ -53,7 +53,7 @@ export class Reaction<Ctx, Params extends any[], Result>
         this._context = context || null;
         this._manager = manager;
         this._state = State.DIRTY;
-        this._subscriptions = [];
+        this._ref = new WeakRef(this);
         this._children = null;
         this._options = getReactionOptions(options);
 
@@ -76,7 +76,6 @@ export class Reaction<Ctx, Params extends any[], Result>
 
     _destroyByParent(): void {
         this._destroyChildren();
-        this._removeSubscriptions();
         this._state = State.DESTROYED_BY_PARENT;
     }
 
@@ -94,27 +93,12 @@ export class Reaction<Ctx, Params extends any[], Result>
         }
     }
 
-    _subscribeTo(subscription: AnySubscription): void {
-        if (!this._options.autocommitSubscriptions || subscription._addSubscriber(this)) {
-            this._subscriptions.push(subscription);
-        }
-    }
-
-    _removeSubscriptions(): void {
-        this._subscriptions.forEach((subscription) => {
-            subscription._removeSubscriber(this);
-        });
-
-        this._subscriptions = [];
-    }
-
     _shouldRun(): boolean {
         return this._state === State.DIRTY;
     }
 
     runManager(): void {
         if (this._manager) {
-            this._removeSubscriptions();
             this._manager();
         } else {
             this.run();
@@ -123,7 +107,6 @@ export class Reaction<Ctx, Params extends any[], Result>
 
     run(): Result {
         this._destroyChildren();
-        this._removeSubscriptions();
 
         const oldSubscriberContext = glob.gSubscriberContext;
         glob.gSubscriberContext = this;
@@ -135,29 +118,20 @@ export class Reaction<Ctx, Params extends any[], Result>
             return this._reaction.apply(this._context!, arguments as unknown as Params);
         } finally {
             glob.gSubscriberContext = oldSubscriberContext;
-            
+
             if (--glob.gTransactionDepth === 0) {
                 endTransaction();
-            };
+            }
         }
     }
 
     destroy(): void {
         this._destroyChildren();
-        this._removeSubscriptions();
         this._state = State.DIRTY;
     }
 
-    commitSubscriptions(): void {
-        if (!this._options.autocommitSubscriptions) {
-            this._subscriptions.forEach((subscription) => {
-                subscription._addSubscriber(this);
-            });
-        }
-    }
-
-    setOptions(options: IReactionOptions): void {
-        this._options = getReactionOptions(options);
+    _getRef(): WeakRef<AnyReaction> {
+        return this._ref;
     }
 }
 

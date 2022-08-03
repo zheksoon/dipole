@@ -5,6 +5,7 @@ import { glob } from "../globals/variables";
 import { endTransaction } from "../schedulers/reaction";
 import {
     AnySubscriber,
+    AnySubscriberRef,
     IObservable,
     IObservableImpl,
     IObservableOptions,
@@ -30,9 +31,9 @@ function getObservableOptions<T>(options?: IObservableOptions<T>): Options<T> {
 }
 
 export class Observable<T> implements IObservableImpl<T> {
-    declare private _subscribers: Set<AnySubscriber>;
-    declare private _value: T;
-    declare private _options: Options<T>;
+    private declare _subscribers: Set<AnySubscriberRef>;
+    private declare _value: T;
+    private declare _options: Options<T>;
 
     constructor(value: T, options?: IObservableOptions<T>) {
         this._subscribers = new Set();
@@ -44,7 +45,7 @@ export class Observable<T> implements IObservableImpl<T> {
         const context = glob.gSubscriberContext;
 
         if (context !== null && !checkSpecialContexts(context, this)) {
-            context._subscribeTo(this);
+            this._addSubscriber(context);
         }
         return this._value;
     }
@@ -72,18 +73,16 @@ export class Observable<T> implements IObservableImpl<T> {
     }
 
     _notifySubscribers(state: SubscriberState): void {
-        this._subscribers.forEach((subscriber) => {
-            subscriber._notify(state, this);
+        this._subscribers.forEach((subscriberRef) => {
+            const subscriber = subscriberRef.deref();
+            subscriber?._notify(state, this);
         });
+
+        this._subscribers.clear();
     }
 
-    _addSubscriber(subscriber: AnySubscriber): boolean {
-        const subscribers = this._subscribers;
-        return subscribers.size < subscribers.add(subscriber).size;
-    }
-
-    _removeSubscriber(subscriber: AnySubscriber): void {
-        this._subscribers.delete(subscriber);
+    _addSubscriber(subscriber: AnySubscriber) {
+        this._subscribers.add(subscriber._getRef());
     }
 }
 

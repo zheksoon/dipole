@@ -3,12 +3,9 @@ import { checkSpecialContexts } from "../extras";
 import { State } from "../constants";
 import { glob } from "../globals/variables";
 import {
-    scheduleSubscribersCheck,
-    removeFromSubscribersCheck,
-} from "../schedulers/subscribersCheck";
-import {
     AnyComputed,
     AnySubscriber,
+    AnySubscriberRef,
     AnySubscription,
     IComputed,
     IComputedImpl,
@@ -45,21 +42,21 @@ function getComputedOptions<T>(options?: IComputedOptions<T>): Options<T> {
 }
 
 export class Computed<T> implements IComputedImpl<T> {
-    declare private _subscribers: Set<AnySubscriber>;
-    declare private _value: undefined | T;
-    declare private _options: Options<T>;
-    declare private _state: ComputedState;
-    declare private _computer: () => T;
-    declare private _subscriptions: AnySubscription[];
-    declare private _maybeDirtySubscriptions: null | AnyComputed[];
+    private declare _subscribers: Set<AnySubscriberRef>;
+    private declare _value: undefined | T;
+    private declare _options: Options<T>;
+    private declare _ref: WeakRef<AnyComputed>;
+    private declare _state: ComputedState;
+    private declare _computer: () => T;
+    private declare _maybeDirtySubscriptions: null | AnyComputed[];
 
     constructor(computer: () => T, options?: IComputedOptions<T>) {
         this._subscribers = new Set();
         this._value = undefined;
         this._options = getComputedOptions(options);
+        this._ref = new WeakRef(this);
         this._state = State.NOT_INITIALIZED;
         this._computer = computer;
-        this._subscriptions = [];
         this._maybeDirtySubscriptions = null;
     }
 
@@ -74,9 +71,7 @@ export class Computed<T> implements IComputedImpl<T> {
             this._actualizeAndRecompute();
 
             if (context !== null) {
-                context._subscribeTo(this);
-            } else {
-                this._checkSubscribers();
+                this._addSubscriber(context);
             }
         }
 
@@ -151,12 +146,6 @@ export class Computed<T> implements IComputedImpl<T> {
         }
     }
 
-    _subscribeTo(subscription: AnySubscription): void {
-        if (subscription._addSubscriber(this)) {
-            this._subscriptions.push(subscription);
-        }
-    }
-
     _addMaybeDirtySubscription(notifier: AnyComputed): void {
         (this._maybeDirtySubscriptions ||= []).push(notifier);
     }
@@ -184,46 +173,26 @@ export class Computed<T> implements IComputedImpl<T> {
     }
 
     _notifySubscribers(state: SubscriberState) {
-        this._subscribers.forEach((subscriber) => {
-            subscriber._notify(state, this);
+        this._subscribers.forEach((subscriberRef) => {
+            const subscriber = subscriberRef.deref();
+            subscriber?._notify(state, this);
         });
+
+        if (state === State.DIRTY) {
+            this._subscribers.clear();
+        }
     }
 
     _removeSubscriptions(): void {
-        this._subscriptions.forEach((subscription) => {
-            subscription._removeSubscriber(this);
-        });
-
-        this._subscriptions = [];
         this._maybeDirtySubscriptions = null;
     }
 
-    _addSubscriber(subscriber: AnySubscriber): boolean {
-        const subscribers = this._subscribers;
-        const subscribersSize = subscribers.size;
-
-        if (subscribersSize === 0) {
-            removeFromSubscribersCheck(this);
-        }
-
-        return subscribersSize < subscribers.add(subscriber).size;
+    _addSubscriber(subscriber: AnySubscriber) {
+        this._subscribers.add(subscriber._getRef());
     }
 
-    _removeSubscriber(subscriber: AnySubscriber): void {
-        this._subscribers.delete(subscriber);
-        this._checkSubscribers();
-    }
-
-    _hasSubscribers(): boolean {
-        return this._subscribers.size !== 0;
-    }
-
-    _checkSubscribers(): void {
-        if (this._hasSubscribers() || this._options.keepAlive) {
-            return;
-        }
-
-        scheduleSubscribersCheck(this);
+    _getRef(): WeakRef<AnyComputed> {
+        return this._ref;
     }
 }
 

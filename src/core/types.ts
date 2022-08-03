@@ -35,34 +35,20 @@ export interface IReaction<_This, Params extends any[], Result> {
     run(...params: Params): Result;
 
     destroy(): void;
-
-    commitSubscriptions(): void;
-
-    setOptions(options: IReactionOptions): void;
 }
 
 export interface IObservableImpl<T> extends IObservable<T> {
-    _addSubscriber(subscriber: AnySubscriber): boolean;
-
-    _removeSubscriber(subsriber: AnySubscriber): void;
+    _addSubscriber(subscriber: AnySubscriber): void;
 }
 
 export interface IComputedImpl<T> extends IComputed<T> {
     _actualizeAndRecompute(): void;
 
-    _subscribeTo(subscription: AnySubscription): void;
-
     _notify(state: SubscriberState, notifier: AnySubscription): void;
 
-    _removeSubscriptions(): void;
+    _addSubscriber(subscriber: AnySubscriber): void;
 
-    _addSubscriber(subscriber: AnySubscriber): boolean;
-
-    _removeSubscriber(subscriber: AnySubscriber): void;
-
-    _hasSubscribers(): boolean;
-
-    _checkSubscribers(): void;
+    _getRef(): WeakRef<IComputedImpl<T>>;
 }
 
 export interface IReactionImpl<This, Params extends any[], Result>
@@ -75,11 +61,9 @@ export interface IReactionImpl<This, Params extends any[], Result>
 
     _notify(state: SubscriberState, notifier: AnySubscription): void;
 
-    _subscribeTo(subscription: AnySubscription): void;
-
-    _removeSubscriptions(): void;
-
     _shouldRun(): boolean;
+
+    _getRef(): WeakRef<IReactionImpl<This, Params, Result>>;
 }
 
 export type AnyObservable = IObservableImpl<any>;
@@ -91,3 +75,5 @@ export type AnyReaction = IReactionImpl<any, any, any>;
 export type AnySubscriber = AnyComputed | AnyReaction;
 
 export type AnySubscription = AnyObservable | AnyComputed;
+
+export type AnySubscriberRef = WeakRef<AnySubscriber>;

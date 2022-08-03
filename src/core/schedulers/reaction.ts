@@ -4,7 +4,6 @@ import {
     hasScheduledStateActualizations,
     runScheduledStateActualizations,
 } from "./stateActualization";
-import { triggerImmediateSubscribersCheck } from "./subscribersCheck";
 
 let gScheduledReactions: (AnyReaction | null)[] = [];
 let gScheduledReactionsStartIndex: number = 0;
@@ -54,10 +53,6 @@ function reactionRunner() {
         while (shouldRunReactionLoop()) {
             runScheduledStateActualizations();
             runScheduledReactions();
-        }
-
-        if (gConfig.subscribersCheckInterval === 0) {
-            triggerImmediateSubscribersCheck();
         }
     } finally {
         isReactionRunnerScheduled = false;
