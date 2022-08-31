@@ -100,11 +100,15 @@ export class Reaction<Ctx, Params extends any[], Result>
     }
 
     commitSubscriptions(): void {
-        if (!this._options.autocommitSubscriptions) {
-            this._subscriptions.forEach((subscription) => {
-                subscription._addSubscriber(this);
-            });
-        }
+        this._subscriptions.forEach((subscription) => {
+            subscription._addSubscriber(this);
+        });
+    }
+
+    unsubscribeFromSubscriptions(): void {
+        this._subscriptions.forEach((subscription) => {
+            subscription._removeSubscriber(this);
+        });
     }
 
     setOptions(options: IReactionOptions): void {
@@ -149,10 +153,7 @@ export class Reaction<Ctx, Params extends any[], Result>
     }
 
     _removeSubscriptions(): void {
-        this._subscriptions.forEach((subscription) => {
-            subscription._removeSubscriber(this);
-        });
-
+        this.unsubscribeFromSubscriptions();
         this._subscriptions = [];
     }
 

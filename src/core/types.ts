@@ -38,6 +38,8 @@ export interface IReaction<_This, Params extends any[], Result> {
 
     commitSubscriptions(): void;
 
+    unsubscribeFromSubscriptions(): void;
+
     setOptions(options: IReactionOptions): void;
 }
 
