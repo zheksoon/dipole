@@ -5,4 +5,5 @@ export const enum State {
     MAYBE_DIRTY = 3,
     DIRTY = 4,
     DESTROYED_BY_PARENT = 5,
+    PASSIVE = 6,
 };

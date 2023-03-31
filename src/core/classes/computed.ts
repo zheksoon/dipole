@@ -1,4 +1,4 @@
-import { untracked } from "../transaction";
+import { untracked, withUntracked } from "../transaction";
 import { checkSpecialContexts } from "../extras";
 import { State } from "../constants";
 import { glob } from "../globals/variables";
@@ -15,6 +15,7 @@ import {
     IComputedOptions,
     SubscriberState,
 } from "../types";
+import { Revision } from "./revision";
 
 type Options<T> = {
     checkValueFn: null | ((prevValue: T, nextValue: T) => boolean);
@@ -26,7 +27,8 @@ type ComputedState =
     | State.CLEAN
     | State.COMPUTING
     | State.MAYBE_DIRTY
-    | State.DIRTY;
+    | State.DIRTY
+    | State.PASSIVE;
 
 function getComputedOptions<T>(options?: IComputedOptions<T>): Options<T> {
     const defaultOptions: Options<T> = {
@@ -36,7 +38,7 @@ function getComputedOptions<T>(options?: IComputedOptions<T>): Options<T> {
 
     if (options && typeof options === "object") {
         if (options.checkValue && typeof options.checkValue === "function") {
-            defaultOptions.checkValueFn = options.checkValue;
+            defaultOptions.checkValueFn = withUntracked(options.checkValue);
         }
         defaultOptions.keepAlive = !!options.keepAlive;
     }
@@ -47,20 +49,24 @@ function getComputedOptions<T>(options?: IComputedOptions<T>): Options<T> {
 export class Computed<T> implements IComputedImpl<T> {
     private declare _subscribers: Set<AnySubscriber>;
     private declare _value: undefined | T;
+    private declare _revision: undefined | Revision;
     private declare _options: Options<T>;
     private declare _state: ComputedState;
     private declare _computer: () => T;
     private declare _subscriptions: AnySubscription[];
-    private declare _maybeDirtySubscriptions: null | AnyComputed[];
+    private declare _subscriptionsToActualize: null | AnyComputed[];
+    private declare _subscriptionRevisions: null | Revision[];
 
     constructor(computer: () => T, options?: IComputedOptions<T>) {
         this._subscribers = new Set();
         this._value = undefined;
+        this._revision = undefined;
         this._options = getComputedOptions(options);
         this._state = State.NOT_INITIALIZED;
         this._computer = computer;
         this._subscriptions = [];
-        this._maybeDirtySubscriptions = null;
+        this._subscriptionsToActualize = null;
+        this._subscriptionRevisions = null;
     }
 
     get(): T {
@@ -83,6 +89,12 @@ export class Computed<T> implements IComputedImpl<T> {
         return this._value!;
     }
 
+    getRevision(): Revision {
+        this._actualizeAndRecompute();
+
+        return this._revision!;
+    }
+
     destroy(): void {
         this._removeSubscriptions();
         this._state = State.NOT_INITIALIZED;
@@ -90,46 +102,47 @@ export class Computed<T> implements IComputedImpl<T> {
     }
 
     _actualizeAndRecompute(): void {
-        if (this._state === State.MAYBE_DIRTY) {
+        if (this._state === State.PASSIVE) {
+            this._checkRevisions();
+        } else if (this._state === State.MAYBE_DIRTY) {
             this._actualizeState();
         }
 
-        if (this._state === State.DIRTY || this._state === State.NOT_INITIALIZED) {
+        if (this._state !== State.CLEAN) {
             this._recomputeAndCheckValue();
         }
     }
 
     _actualizeState(): void {
-        const subscriptions = this._maybeDirtySubscriptions;
+        if (this._subscriptionsToActualize !== null) {
+            this._subscriptionsToActualize.forEach((subs) => {
+                subs._actualizeAndRecompute();
+            });
+            this._subscriptionsToActualize = null;
+        }
 
-        const actualizedAndNotNotified = (subscription: AnyComputed) => {
-            subscription._actualizeAndRecompute();
-            return this._state === State.MAYBE_DIRTY;
-        };
-
-        if (!subscriptions || subscriptions.every(actualizedAndNotNotified)) {
+        if (this._state === State.MAYBE_DIRTY) {
             // we actualized all subscriptions and nobody notified us, so we are clean
             this._state = State.CLEAN;
         }
-
-        this._maybeDirtySubscriptions = null;
     }
 
     _recomputeAndCheckValue(): void {
-        const stateBefore = this._state;
-        const value = this._recomputeValue();
         const { checkValueFn } = this._options;
+        const shouldCheck = checkValueFn !== null && this._state !== State.NOT_INITIALIZED;
+        const value = this._recomputeValue();
 
-        if (checkValueFn !== null && stateBefore !== State.NOT_INITIALIZED) {
-            const isSameValue = untracked(() => checkValueFn(this._value!, value));
-
-            if (isSameValue) return;
+        if (shouldCheck) {
+            if (checkValueFn!(this._value!, value)) {
+                return;
+            }
 
             // the value has changed - do the delayed notification of all subscribers
             this._notifySubscribers(State.DIRTY);
         }
 
         this._value = value;
+        this._revision = new Revision();
     }
 
     _recomputeValue(): T {
@@ -151,14 +164,31 @@ export class Computed<T> implements IComputedImpl<T> {
         }
     }
 
+    _checkRevisions(): void {
+        const subscriptions = this._subscriptions;
+        const revisions = this._subscriptionRevisions;
+
+        if (revisions === null) {
+            return;
+        }
+
+        for (let i = 0; i < subscriptions.length; i++) {
+            const revision = revisions[i];
+            const actualRevision = subscriptions[i].getRevision();
+
+            if (revision !== actualRevision) {
+                this._state = State.DIRTY;
+                return;
+            }
+        }
+
+        this._state = State.CLEAN;
+    }
+
     _subscribeTo(subscription: AnySubscription): void {
         if (subscription._addSubscriber(this)) {
             this._subscriptions.push(subscription);
         }
-    }
-
-    _addMaybeDirtySubscription(notifier: AnyComputed): void {
-        (this._maybeDirtySubscriptions ||= []).push(notifier);
     }
 
     _notify(state: SubscriberState, notifier: AnySubscription): void {
@@ -177,7 +207,7 @@ export class Computed<T> implements IComputedImpl<T> {
         this._state = state;
 
         if (state === State.MAYBE_DIRTY) {
-            this._addMaybeDirtySubscription(notifier as AnyComputed);
+            (this._subscriptionsToActualize ||= []).push(notifier);
         } else if (state === State.DIRTY) {
             this._removeSubscriptions();
         }
@@ -189,13 +219,16 @@ export class Computed<T> implements IComputedImpl<T> {
         });
     }
 
-    _removeSubscriptions(): void {
+    _unsubscribe(): void {
         this._subscriptions.forEach((subscription) => {
             subscription._removeSubscriber(this);
         });
+    }
 
+    _removeSubscriptions(): void {
+        this._unsubscribe();
         this._subscriptions = [];
-        this._maybeDirtySubscriptions = null;
+        this._subscriptionsToActualize = null;
     }
 
     _addSubscriber(subscriber: AnySubscriber): boolean {
@@ -211,19 +244,25 @@ export class Computed<T> implements IComputedImpl<T> {
 
     _removeSubscriber(subscriber: AnySubscriber): void {
         this._subscribers.delete(subscriber);
-        this._checkSubscribers();
+        this._scheduleSubscribersCheck();
     }
 
-    _hasSubscribers(): boolean {
-        return this._subscribers.size > 0;
-    }
-
-    _checkSubscribers(): void {
-        if (this._hasSubscribers() || this._options.keepAlive) {
-            return;
+    _scheduleSubscribersCheck(): void {
+        if (this._subscribers.size === 0 && !this._options.keepAlive) {
+            scheduleSubscribersCheck(this);
         }
+    }
 
-        scheduleSubscribersCheck(this);
+    _checkSubscribersAndMakePassive(): void {
+        if (this._subscribers.size === 0 && this._state !== State.PASSIVE) {
+            this._passivate();
+        }
+    }
+
+    _passivate(): void {
+        this._unsubscribe();
+        this._subscriptionRevisions = this._subscriptions.map((subs) => subs._getRevision());
+        this._state = State.PASSIVE;
     }
 }
 

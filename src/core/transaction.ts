@@ -40,6 +40,20 @@ export function untracked<T>(fn: () => T): T {
     }
 }
 
+export function withUntracked<Args extends any[], Result>(
+    fn: (...args: Args) => Result
+): (...args: Args) => Result {
+    return function(this: unknown) {
+        const oldSubscriberContext = glob.gSubscriberContext;
+        glob.gSubscriberContext = null;
+        try {
+            return fn.apply(this, arguments as unknown as Arg);
+        } finally {
+            glob.gSubscriberContext = oldSubscriberContext;
+        }
+    }
+}
+
 export function action<Args extends any[], Result>(
     fn: (...args: Args) => Result
 ): (...args: Args) => Result {

@@ -10,6 +10,8 @@ import {
     IObservableOptions,
     SubscriberState,
 } from "../types";
+import { withUntracked } from "../transaction";
+import { Revision } from "./revision";
 
 type Options<T> = {
     checkValueFn: null | ((prevValue: T, nextValue: T) => boolean);
@@ -22,7 +24,7 @@ function getObservableOptions<T>(options?: IObservableOptions<T>): Options<T> {
 
     if (options && typeof options === "object") {
         if (options.checkValue && typeof options.checkValue === "function") {
-            defaultOptions.checkValueFn = options.checkValue;
+            defaultOptions.checkValueFn = withUntracked(options.checkValue);
         }
     }
 
@@ -32,11 +34,13 @@ function getObservableOptions<T>(options?: IObservableOptions<T>): Options<T> {
 export class Observable<T> implements IObservableImpl<T> {
     private declare _subscribers: Set<AnySubscriber>;
     private declare _value: T;
+    private declate _revision: Revision;
     private declare _options: Options<T>;
 
     constructor(value: T, options?: IObservableOptions<T>) {
         this._subscribers = new Set();
         this._value = value;
+        this._revision = new Revision();
         this._options = getObservableOptions(options);
     }
 
@@ -54,7 +58,9 @@ export class Observable<T> implements IObservableImpl<T> {
             throw new Error("Can't change observable value inside of computed");
         }
 
-        if (this._options.checkValueFn !== null && this._options.checkValueFn(this._value, value)) {
+        const { checkValueFn } = this._options;
+
+        if (checkValueFn !== null && checkValueFn(this._value, value)) {
             return;
         }
 
